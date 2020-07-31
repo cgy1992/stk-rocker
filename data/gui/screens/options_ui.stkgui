@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<stkgui>
+    <icon-button id="back" x="1%" y="0" height="9%" icon="gui/icons/back.png"/>
+    <div x="1%" y="1%" width="98%" height="98%" layout="vertical-row" >
+        <header width="80%" height="8%" align="center" text="SuperTuxKart Options" text_align="center"/>
+        <spacer width="100%" height="1%"/>
+
+        <div width="100%" height="91%" layout="horizontal-row" >
+
+            <vertical-tabs id="options_choice" height="100%" width="20%">
+                <icon-button id="tab_general" width="128" height="128" icon="gui/icons/options_general.png"
+                        I18N="Section in the settings menu" text="General"/>
+                <icon-button id="tab_video" width="128" height="128" icon="gui/icons/options_video.png"
+                        I18N="Section in the settings menu" text="Graphics"/>
+                <icon-button id="tab_audio" width="128" height="128" icon="gui/icons/options_audio.png"
+                        I18N="Section in the settings menu" text="Audio"/>
+                <icon-button id="tab_ui" width="128" height="128" icon="gui/icons/options_ui.png"
+                        I18N="Section in the settings menu" text="Interface"/>
+                <icon-button id="tab_players" width="128" height="128" icon="gui/icons/options_players.png"
+                        I18N="Section in the settings menu" text="Players"/>
+                <icon-button id="tab_controls" width="128" height="128" icon="gui/icons/options_input.png"
+                        I18N="Section in the settings menu" text="Controls"/>
+                <icon-button id="tab_language" width="128" height="128" icon="gui/icons/options_language.png"
+                        I18N="Section in the settings menu" text="Language"/>
+            </vertical-tabs>
+
+            <spacer width="2%" height="100%"/>
+
+            <box width="78%" height="100%" layout="vertical-row">
+
+                <spacer width="5" height="1%"/>
+
+                <!-- ************ SKIN CHOICE ************ -->
+                <div width="100%" height="fit" layout="horizontal-row">
+                    <div layout="vertical-row" width="10f" height="fit">
+                        <spinner id="skinchoice" width="100%" align="center" />
+                    </div>
+                    <div layout="vertical-row" proportion="1" height="100%">
+                        <label height="100%" I18N="In the ui settings" text="Skin" align="left"/>
+                    </div>
+                </div>
+
+                <spacer width="5" height="2%"/>
+
+                <div width="100%" height="fit" layout="horizontal-row">
+                    <div layout="vertical-row" width="10f" height="fit">
+                        <spinner id="minimap" width="100%" align="center" />
+                    </div>
+                    <div layout="vertical-row" proportion="1" height="100%">
+                        <label height="100%" I18N="In the ui settings" text="Minimap" align="left"/>
+                    </div>
+                </div>
+
+                <spacer width="5" height="2%"/>
+
+                <div layout="horizontal-row" width="100%" height="fit">
+                    <div layout="vertical-row" width="10f" height="fit">
+                        <spinner id="splitscreen_method" width="100%" align="center" />
+                    </div>
+                    <div layout="vertical-row" proportion="1" height="100%">
+                        <label height="100%" I18N="In the ui settings" text="Splitscreen Multiplayer layout" align="left"/>
+                    </div>
+                </div>
+
+                <spacer width="5" height="2%"/>
+
+                <div width="100%" height="fit" layout="horizontal-row">
+                    <div layout="vertical-row" width="10f" height="fit">
+                        <gauge id="font_size" width="100%" align="center" />
+                    </div>
+                    <div layout="vertical-row" proportion="1" height="100%">
+                        <label height="100%" I18N="In the ui settings" text="Font size" align="left"/>
+                    </div>
+                </div>
+
+                <spacer width="5" height="2%"/>
+
+                <div layout="horizontal-row" width="100%" height="fit">
+                    <checkbox id="showfps"/>
+                    <spacer width="1%" height="100%" />
+                    <label height="100%" I18N="In the ui settings" text="Display FPS" word_wrap="true"/>
+                </div>
+
+                <spacer width="5" height="2%"/>
+
+                <div layout="horizontal-row" width="100%" height="fit">
+                    <checkbox id="karts_powerup_gui"/>
+                    <spacer width="1%" height="100%" />
+                    <label height="100%" I18N="In the ui settings" text="Show other karts' held powerups" word_wrap="true"/>
+                </div>
+
+                <spacer width="5" height="2%"/>
+
+
+                <div layout="horizontal-row" width="100%" height="fit">
+                    <checkbox id="story-mode-timer"/>
+                    <spacer width="1%" height="100%" />
+                    <label height="100%" I18N="In the ui settings" text="Enable the story mode timer" word_wrap="true"/>
+                </div>
+
+                <spacer width="5" height="2%"/>
+
+                <div layout="horizontal-row" width="100%" height="fit">
+                    <checkbox id="speedrun-timer"/>
+                    <spacer width="1%" height="100%" />
+                    <label id="speedrun-timer-text" height="100%" I18N="In the ui settings" text="Enable the speedrun timer" word_wrap="true"/>
+                </div>
+
+                <spacer width="5" height="2%"/>
+            </box>
+        </div>
+    </div>
+</stkgui>
