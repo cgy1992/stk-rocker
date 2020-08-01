@@ -188,7 +188,7 @@ ServerLobby::ServerLobby() : LobbyProtocol()
         "teamchat gnu nognu standings gnu2 gnu2addtrack record tell "
         "installaddon uninstalladdon liststkaddon listlocaladdon "
         "listserveraddon playerhasaddon playeraddonscore serverhasaddon "
-		"setfield settrack mode";
+		"setfield settrack mode vote";
 
     m_gnu_elimination = false;
     m_gnu_remained = 0;
@@ -2863,6 +2863,8 @@ void ServerLobby::startSelection(const Event *event)
 			// ---------------
 		}
 	}
+
+	m_command_voters.clear();
 
 	if (m_gnu_elimination)
 		m_available_kts.first.insert(m_gnu_kart);
@@ -5628,18 +5630,18 @@ void ServerLobby::handleServerConfiguration(Event* event)
             m_state.load());
         return;
     }
-    if (!ServerConfig::m_server_configurable && !ServerConfig::m_race_tournament)
+    if (!ServerConfig::m_server_configurable)
     {
         Log::warn("ServerLobby", "server-configurable is not enabled.");
-        return;
+        // return;
     }
-//if (event != NULL && /*event->getPeerSP() != m_server_owner.lock()*/ !(hasHostRights(event->getPeerSP())) )
-//    {
-//        Log::warn("ServerLobby",
-//            "Client %d is not authorised to config server.",
-//            event->getPeer()->getHostId());
-//        return;
-  //  }
+	if (event != NULL && /*event->getPeerSP() != m_server_owner.lock()*/ !(hasHostRights(event->getPeerSP())) )
+	{
+	    Log::warn("ServerLobby",
+	              "Client %d is not authorised to config server.",
+	               event->getPeer()->getHostId());
+	    // return;
+	}
     int new_difficulty = ServerConfig::m_server_difficulty;
     int new_game_mode = ServerConfig::m_server_mode;
     bool new_soccer_goal_target = ServerConfig::m_soccer_goal_target;
@@ -6134,6 +6136,33 @@ void ServerLobby::handleServerCommand(Event* event,
     auto argv = StringUtils::split(cmd, ' ');
     if (argv.size() == 0)
         return;
+
+	bool hostRights = hasHostRights(peer);
+
+	// Even if a player has host rights, he can be fair and vote for a command.
+	// Example: /vote gnu nolok
+	if (argv[0] == "vote")
+	{
+		if (ServerConfig::m_command_voting == false)
+		{
+			std::string msg = "Command voting is disabled on this server.";
+			sendStringToPeer(msg, peer);
+			return;
+		}
+		else if (argv.size() < 2)
+		{
+			std::string msg = "Usage: /vote [command]";
+			sendStringToPeer(msg, peer);
+			return;
+		}
+
+		hostRights = false;
+
+		// remove "vote " from the command
+		argv.erase(argv.begin());
+		cmd = cmd.substr(5, cmd.length());
+	}
+
     if (argv[0] == "spectate")
     {
         if (ServerConfig::m_soccer_tournament || ServerConfig::m_race_tournament)
@@ -6333,16 +6362,8 @@ void ServerLobby::handleServerCommand(Event* event,
     }
     else if (StringUtils::startsWith(cmd, "kick"))
     {
-        if (!hasHostRights(peer))
-        {
-            NetworkString* chat = getNetworkString();
-            chat->addUInt8(LE_CHAT);
-            chat->setSynchronous(true);
-            chat->encodeString16(L"You are not server owner");
-            peer->sendPacket(chat, true/*reliable*/);
-            delete chat;
-            return;
-        }
+		if (!commandPermitted(cmd, peer, hostRights)) return;
+
         std::string player_name;
         if (StringUtils::startsWith(cmd, "kickban"))
         {
@@ -6382,16 +6403,8 @@ void ServerLobby::handleServerCommand(Event* event,
     }
     else if (StringUtils::startsWith(cmd, "unban"))
     {
-        if (!hasHostRights(peer))
-        {
-            NetworkString* chat = getNetworkString();
-            chat->addUInt8(LE_CHAT);
-            chat->setSynchronous(true);
-            chat->encodeString16(L"You are not server owner");
-            peer->sendPacket(chat, true/*reliable*/);
-            delete chat;
-            return;
-        }
+		if (!commandPermitted(cmd, peer, hostRights)) return;
+
         std::string player_name;
         if (cmd.length() > 6)
         {
@@ -6415,16 +6428,8 @@ void ServerLobby::handleServerCommand(Event* event,
     }
     else if (StringUtils::startsWith(cmd, "ban"))
     {
-        if (!hasHostRights(peer))
-        {
-            NetworkString* chat = getNetworkString();
-            chat->addUInt8(LE_CHAT);
-            chat->setSynchronous(true);
-            chat->encodeString16(L"You are not server owner");
-            peer->sendPacket(chat, true/*reliable*/);
-            delete chat;
-            return;
-        }
+		if (!commandPermitted(cmd, peer, hostRights)) return;
+
         std::string player_name;
         if (cmd.length() > 4)
         {
@@ -6542,14 +6547,8 @@ void ServerLobby::handleServerCommand(Event* event,
     }
 	else if (argv[0] == "gnu2addtrack")
 	{
-		if (hasHostRights(peer) == false)
+		if (!commandPermitted(cmd, peer, hostRights))
 		{
-			NetworkString* chat = getNetworkString();
-			chat->addUInt8(LE_CHAT);
-			chat->setSynchronous(true);
-			chat->encodeString16(L"You are not server owner");
-			peer->sendPacket(chat, true/*reliable*/);
-			delete chat;
 			return;
 		}
 		else 
@@ -6582,17 +6581,10 @@ void ServerLobby::handleServerCommand(Event* event,
 	}
     else if (argv[0] == "gnu" || argv[0] == "gnu2")
     {
-        //if (m_server_owner.lock() != peer)
-		if (hasHostRights(peer) == false)
-        {
-            NetworkString* chat = getNetworkString();
-            chat->addUInt8(LE_CHAT);
-            chat->setSynchronous(true);
-            chat->encodeString16(L"You are not server owner");
-            peer->sendPacket(chat, true/*reliable*/);
-            delete chat;
-            return;
-        }
+		if (!commandPermitted(cmd, peer, hostRights))
+		{
+			return;
+		}
         else if (m_gnu_elimination)
         {
             NetworkString* chat = getNetworkString();
@@ -6663,14 +6655,8 @@ void ServerLobby::handleServerCommand(Event* event,
     }
     else if (argv[0] == "nognu")
     {        
-        if (hasHostRights(peer) == false)
+		if (!commandPermitted(cmd, peer, hostRights))
         {
-            NetworkString* chat = getNetworkString();
-            chat->addUInt8(LE_CHAT);
-            chat->setSynchronous(true);
-            chat->encodeString16(L"You are not server owner");
-            peer->sendPacket(chat, true/*reliable*/);
-            delete chat;
             return;
         }
         else if (!m_gnu_elimination)
@@ -6883,14 +6869,10 @@ void ServerLobby::handleServerCommand(Event* event,
 			sendStringToPeer(msg, peer);
 			return;
 		}
-		std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
 
-		if (!hasHostRights(peer))
-		{
-			std::string msg = "You are not server owner.";
-			sendStringToPeer(msg, peer);
-			return;
-		}
+		if (!commandPermitted(cmd, peer, hostRights)) return;
+
+		std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
 
 		std::string soccer_field_id = argv[1];
 
@@ -6941,7 +6923,7 @@ void ServerLobby::handleServerCommand(Event* event,
 
 		// Check that peer and server have the track
 		std::shared_ptr<STKPeer> player_peer = STKHost::get()->findPeerByName(StringUtils::utf8ToWide(peer_username));
-		
+
 		bool found = serverAndPeerHaveTrack(player_peer, soccer_field_id);
 
 		if (!(found))
@@ -6960,7 +6942,7 @@ void ServerLobby::handleServerCommand(Event* event,
 			m_set_field = soccer_field_id;
 
 			std::string msg = isField ? "Next played soccer field will be " + soccer_field_id + "." :
-										"Next played track will be " + soccer_field_id + ".";
+				"Next played track will be " + soccer_field_id + ".";
 
 			// Send message to the lobby
 			sendStringToAllPeers(msg);
@@ -6968,46 +6950,45 @@ void ServerLobby::handleServerCommand(Event* event,
 		else
 		{
 			std::string msg = isField ? "Soccer field \'" + soccer_field_id + "\' does not exist or is not installed." :
-										"Track \'" + soccer_field_id + "\' does not exist or is not installed.";
+				"Track \'" + soccer_field_id + "\' does not exist or is not installed.";
 			sendStringToPeer(msg, peer);
 			return;
 		}
+		
 	}
 	else if (argv[0] == "mode")
 	{
 		if (argv.size() != 2)
 		{
-			std::string msg = "Format: /mode {time, normal, soccer-time, soccer-goal}";
+			std::string msg = "Format: /mode {grand-prix-normal, grand-prix-time, normal, time, soccer-time, soccer-goal, free-for-all, capture-the-flag}";
 			sendStringToPeer(msg, peer);
 			return;
 		}
 		else
 		{
-			std::string mode = argv[1];
+			unsigned char difficulty = m_difficulty.load();
+			unsigned char gameMode = 0;
+			unsigned char soccerGoalTarget = 0;
+			bool serverModeValid = stringToServerMode(argv[1], gameMode, soccerGoalTarget);
 
-			if (mode == "time" || mode == "Time" || mode == "t" || mode == "T" || mode == "Zeit" || mode == "zeit")
+			if (serverModeValid)
 			{
-				setServerMode(3, 4, 0, peer); // difficulty = 3, game mode = 4, soccer goal target = 0
-				std::string message = "The referee has set the game mode to Time Trial.";
-				sendStringToAllPeers(message);
+				if (m_available_modes.count(gameMode) == 0)
+				{
+					std::string msg = "Mode \"" + serverModeToString(gameMode, soccerGoalTarget) + "\" is not available on this server.";
+					sendStringToPeer(msg, peer);
+					return;
+				}
+
+				if (!commandPermitted(cmd, peer, hostRights)) return;
+
+				setServerMode(difficulty, gameMode, soccerGoalTarget, peer);
 			}
-			else if (mode == "normal" || mode == "Normal" || mode == "n" || mode == "N" || mode == "Waffen" || mode == "waffen")
+			else
 			{
-				setServerMode(3, 3, 0, peer); // difficulty = 3, game mode = 3, soccer goal target = 0
-				std::string message = "The referee has set the game mode to Normal Race.";
-				sendStringToAllPeers(message);
-			}
-			else if (mode == "soccer-time" || mode == "Soccer-Time" || mode == "st" || mode == "ST" || mode == "soccer" || mode == "Soccer" || mode == "Fuﬂball" || mode == "fuﬂball" || mode == "Fussball" || mode == "fussball" || mode == "Fuﬂball-Zeit" || mode == "fuﬂball-zeit")
-			{
-				setServerMode(3, 6, 0, peer); // difficulty = 3, game mode = 6, soccer goal target = 0
-				std::string message = "The referee has set the game mode to Soccer (time limit).";
-				sendStringToAllPeers(message);
-			}
-			else if (mode == "soccer-goal" || mode == "Soccer-Goal" || mode == "sg" || mode == "SG" || mode == "Fuﬂball-Tor" || mode == "fuﬂball-tor")
-			{
-				setServerMode(3, 6, 1, peer); // difficulty = 3, game mode = 6, soccer goal target = 1
-				std::string message = "The referee has set the game mode to Soccer (goal target).";
-				sendStringToAllPeers(message);
+				std::string msg = "Mode \"" + argv[1] + "\" does not exist.";
+				sendStringToPeer(msg, peer);
+				return;
 			}
 		}
 	}
@@ -7461,8 +7442,103 @@ void ServerLobby::setServerMode(unsigned char difficulty, unsigned char game_mod
 	handleServerConfiguration(e);
 } // setServerMode
 //-----------------------------------------------------------------------------
+bool ServerLobby::stringToServerMode(std::string server_mode_str, unsigned char &out_game_mode, unsigned char &out_soccer_goal_target)
+{
+	std::vector<std::string> mode_0{ "grand-prix-normal", "gpn", "0" };
+	std::vector<std::string> mode_1{ "grand-prix-time", "gpt", "1" };
+	std::vector<std::string> mode_3{ "normal", "normal-race", "n", "Waffen", "3" };
+	std::vector<std::string> mode_4{ "time", "time-trial", "t", "Zeitrennen", "4" };
+	std::vector<std::string> mode_6_0{ "soccer-time", "st", "soccer", "s", "Fuﬂball", "Zeitlimit", "6", "6-0" };
+	std::vector<std::string> mode_6_1{ "soccer-goal", "sg", "Torlimit", "6-1" };
+	std::vector<std::string> mode_7{ "free-for-all", "ffa", "7" };
+	std::vector<std::string> mode_8{ "capture-the-flag", "ctf", "8" };
 
+	if (std::find(mode_0.begin(), mode_0.end(), server_mode_str) != mode_0.end())
+	{
+		out_game_mode = 0; 
+		out_soccer_goal_target = 0;
+		return true;
+	}
+	else if (std::find(mode_1.begin(), mode_1.end(), server_mode_str) != mode_1.end())
+	{
+		out_game_mode = 1;
+		out_soccer_goal_target = 0;
+		return true;
+	}
+	else if (std::find(mode_3.begin(), mode_3.end(), server_mode_str) != mode_3.end())
+	{
+		out_game_mode = 3;
+		out_soccer_goal_target = 0;
+		return true;
+	}
+	else if (std::find(mode_4.begin(), mode_4.end(), server_mode_str) != mode_4.end())
+	{
+		out_game_mode = 4;
+		out_soccer_goal_target = 0;
+		return true;
+	}
+	else if (std::find(mode_6_0.begin(), mode_6_0.end(), server_mode_str) != mode_6_0.end())
+	{
+		out_game_mode = 6;
+		out_soccer_goal_target = 0;
+		return true;
+	}
+	else if (std::find(mode_6_1.begin(), mode_6_1.end(), server_mode_str) != mode_6_1.end())
+	{
+		out_game_mode = 6;
+		out_soccer_goal_target = 1;
+		return true;
+	}
+	else if (std::find(mode_6_1.begin(), mode_6_1.end(), server_mode_str) != mode_6_1.end())
+	{
+		out_game_mode = 6;
+		out_soccer_goal_target = 1;
+		return true;
+	}
+	else if (std::find(mode_7.begin(), mode_7.end(), server_mode_str) != mode_7.end())
+	{
+		out_game_mode = 7;
+		out_soccer_goal_target = 0;
+		return true;
+	}
+	else if (std::find(mode_8.begin(), mode_8.end(), server_mode_str) != mode_8.end())
+	{
+		out_game_mode = 8;
+		out_soccer_goal_target = 0;
+		return true;
+	}
 
+	return false;
+} // stringToServerMode
+//-----------------------------------------------------------------------------
+std::string ServerLobby::serverModeToString(unsigned char game_mode, unsigned char soccer_goal_target)
+{
+	switch (game_mode)
+	{
+		case 0:
+			return "Normal Race (Grand Prix)";
+		case 1:
+			return "Time Trial (Grand Prix)";
+		case 3:
+			return "Normal Race";
+		case 4:
+			return "Time Trial";
+		case 6:
+			if (soccer_goal_target == 0)
+				return "Soccer (Time Limit)";
+			else if (soccer_goal_target == 1)
+				return "Soccer (Goal Limit)";
+			else
+				return "Soccer";
+		case 7:
+			return "Free for All";
+		case 8:
+			return "Capture the Flag";
+		default:
+			return "undefined server mode";
+	}
+} // serverModeToString
+//-----------------------------------------------------------------------------
 void ServerLobby::storeResults()
 {
 #ifdef ENABLE_SQLITE3
@@ -7852,8 +7928,64 @@ bool ServerLobby::hasHostRights(STKPeer* peer) const
 	{
 		return m_race_tournament_referees.count(username) > 0;
 	}
+
     return false;
 }   // hasHostRights
+//-----------------------------------------------------------------------------
+bool ServerLobby::voteForCommand(std::shared_ptr<STKPeer>& peer, std::string command)
+{
+	if (!ServerConfig::m_command_voting) return false;
+
+	std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+	int playerCount = STKHost::get()->getPeers().size();
+
+	if (m_command_voters.count(command) == 0)
+	{
+		m_command_voters[command] = std::vector<std::string>();
+	}
+
+	if (std::find(m_command_voters[command].begin(), m_command_voters[command].end(), username) != m_command_voters[command].end())
+	{
+		std::string msg = "You already voted for \"" + command + "\".";
+		sendStringToPeer(msg, peer);
+	}
+	else
+	{
+		m_command_voters[command].push_back(username);
+		std::string message = username + " voted for \"/" + command + "\" (" + std::to_string(m_command_voters[command].size()) + " of " + std::to_string(playerCount) + " votes).";
+		sendStringToAllPeers(message);
+	}
+	
+	
+	if (m_command_voters[command].size() > (playerCount / 2))
+	{
+		m_command_voters.erase(command);
+		return true;
+	}
+	
+	return false;
+} // voteForCommand
+//-----------------------------------------------------------------------------
+bool ServerLobby::commandPermitted(std::string command, std::shared_ptr<STKPeer>& peer, bool hostRights)
+{
+	if (hostRights)
+	{
+		return true;
+	}
+	else
+	{
+		if (ServerConfig::m_command_voting)
+		{
+			return voteForCommand(peer, command);
+		}
+		else
+		{
+			std::string msg = "You are not server owner";
+			sendStringToPeer(msg, peer);
+			return false;
+		}
+	}
+} // commandPermitted
 //-----------------------------------------------------------------------------
 bool ServerLobby::isVIP(std::shared_ptr<STKPeer>& peer) const
 {

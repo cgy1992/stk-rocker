@@ -607,6 +607,13 @@ namespace ServerConfig
 		"If true, the available tracks are chosen randomly. If false, the "
 		"first n tracks of the list are chosen."));
 
+	SERVER_CFG_PREFIX BoolServerConfigParam m_command_voting
+		SERVER_CFG_DEFAULT(BoolServerConfigParam(true,
+		"command-voting",
+		"If true, all players can vote to execute a command that requires host rights. "
+		"Players without host rights can vote by writing the command into the chat, "
+		"players with host rights need to write \"/vote [command]\" instead of \"/[command]\""));
+
     // ========================================================================
     /** Server version, will be advanced if there are protocol changes. */
     static const uint32_t m_server_version = 6;
