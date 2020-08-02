@@ -2639,9 +2639,11 @@ void ServerLobby::unregisterServer(bool now, std::weak_ptr<ServerLobby> sl)
  */
 void ServerLobby::startSelection(const Event *event)
 {
+	Log::info("ServerLobby", "startSelection() called.");
     bool need_to_update = false;
     if (event != NULL)
     {
+		Log::info("ServerLobby", "startSelection() - event not NULL");
         if (m_state != WAITING_FOR_START_GAME)
         {
             Log::warn("ServerLobby",
@@ -2701,6 +2703,7 @@ void ServerLobby::startSelection(const Event *event)
         }
     }
 
+	Log::info("ServerLobby", "startSelection - OK");
     // Remove karts / tracks from server that are not supported on all clients
     std::set<std::string> karts_erase, tracks_erase;
     auto peers = STKHost::get()->getPeers();
@@ -2714,17 +2717,20 @@ void ServerLobby::startSelection(const Event *event)
         bool can_race = canRace(peer);
         if (!can_race)
         {
-            if (ServerConfig::m_soccer_tournament || ServerConfig::m_race_tournament)
-                peer->setAlwaysSpectate(true);
+			if (ServerConfig::m_soccer_tournament || ServerConfig::m_race_tournament)
+			{
+				peer->setAlwaysSpectate(true);
+			}
+			if (!peer->alwaysSpectate())
+			{
+				peer->setWaitingForGame(true);
+				m_peers_ready.erase(peer);
+				need_to_update = true;
+				continue;
+			}
         }
-        if (!can_race && !peer->alwaysSpectate())
-        {
-            peer->setWaitingForGame(true);
-            m_peers_ready.erase(peer);
-            need_to_update = true;
-            continue;
-        }
-        else if (peer->alwaysSpectate())
+
+        if (peer->alwaysSpectate())
         {
             always_spectate_peers.insert(peer.get());
             continue;
@@ -2940,7 +2946,15 @@ void ServerLobby::startSelection(const Event *event)
     if (m_available_kts.second.empty())
     {
         Log::error("ServerLobby", "No tracks for playing!");
-        return;
+
+		if (m_game_mode == 6) // soccer
+			m_available_kts.second.insert("icy_soccer_field");
+		else if (m_game_mode == 7 || m_game_mode == 8) // free for all, capture the flag
+			m_available_kts.second.insert("stadium");
+		else
+			m_available_kts.second.insert("volcano_island"); // race
+
+        // return;
     }
 
     RandomGenerator rg;
@@ -3691,6 +3705,9 @@ void ServerLobby::clientDisconnected(Event* event)
         msg->encodeString(name);
         Log::info("ServerLobby", "%s disconnected", name.c_str());
     }
+
+	if (m_peers_ready.find(event->getPeerSP()) != m_peers_ready.end())
+		m_peers_ready.erase(event->getPeerSP());
 
     unsigned players_number;
     STKHost::get()->updatePlayers(NULL, NULL, &players_number);
@@ -5689,6 +5706,7 @@ void ServerLobby::handleServerConfiguration(Event* event)
         Log::info("ServerLobby", "Updating server info with new "
             "difficulty: %d, game mode: %d to stk-addons.", new_difficulty,
             new_game_mode);
+		m_set_field = "";
         int priority = Online::RequestManager::HTTP_MAX_PRIORITY;
         auto request = std::make_shared<Online::XMLRequest>(priority);
         NetworkConfig::get()->setServerDetails(request, "update-config");
@@ -6362,8 +6380,6 @@ void ServerLobby::handleServerCommand(Event* event,
     }
     else if (StringUtils::startsWith(cmd, "kick"))
     {
-		if (!commandPermitted(cmd, peer, hostRights)) return;
-
         std::string player_name;
         if (StringUtils::startsWith(cmd, "kickban"))
         {
@@ -6388,6 +6404,8 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         else
         {
+			if (!commandPermitted(cmd, peer, hostRights)) return;
+
             Log::info("ServerLobby", "Crown player kicks %s", player_name.c_str());
             player_peer->kick();
             if (ServerConfig::m_track_kicks) {
@@ -6403,8 +6421,6 @@ void ServerLobby::handleServerCommand(Event* event,
     }
     else if (StringUtils::startsWith(cmd, "unban"))
     {
-		if (!commandPermitted(cmd, peer, hostRights)) return;
-
         std::string player_name;
         if (cmd.length() > 6)
         {
@@ -6422,14 +6438,13 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         else
         {
+			if (!commandPermitted(cmd, peer, hostRights)) return;
             Log::info("ServerLobby", "%s is now unbanned", player_name.c_str());
             m_temp_banned.erase(player_name);
         }
     }
     else if (StringUtils::startsWith(cmd, "ban"))
     {
-		if (!commandPermitted(cmd, peer, hostRights)) return;
-
         std::string player_name;
         if (cmd.length() > 4)
         {
@@ -6447,6 +6462,7 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         else
         {
+			if (!commandPermitted(cmd, peer, hostRights)) return;
             Log::info("ServerLobby", "%s is now banned", player_name.c_str());
             m_temp_banned.insert(player_name);
         }
@@ -6547,45 +6563,36 @@ void ServerLobby::handleServerCommand(Event* event,
     }
 	else if (argv[0] == "gnu2addtrack")
 	{
-		if (!commandPermitted(cmd, peer, hostRights))
+		if (argv.size() > 1)
 		{
-			return;
-		}
-		else 
-		{
-			if (argv.size() > 1)
+			std::string newTrack = argv[1];
+
+			if (serverAndPeerHaveTrack(peer, newTrack))
 			{
-				std::string newTrack = argv[1];
+				if (!commandPermitted(cmd, peer, hostRights)) return;
 
-				if (serverAndPeerHaveTrack(peer, newTrack))
-				{
-					m_gnu2_available_tracks.insert(m_gnu2_available_tracks.begin(), newTrack);
+				m_gnu2_available_tracks.insert(m_gnu2_available_tracks.begin(), newTrack);
 
-					NetworkString* chat = getNetworkString();
-					chat->addUInt8(LE_CHAT);
-					chat->setSynchronous(true);
-					std::string message = "Track "+ newTrack +" was added to gnu2 elimination!";
-					chat->encodeString16(StringUtils::utf8ToWide(message));
-					sendMessageToPeers(chat);
-					delete chat;
-					return;
-				}
-				else
-				{
-					std::string message = "Track " + newTrack + " does not exist or is not installed.";
-					sendStringToPeer(message, peer);
-					return;
-				}
+				NetworkString* chat = getNetworkString();
+				chat->addUInt8(LE_CHAT);
+				chat->setSynchronous(true);
+				std::string message = "Track "+ newTrack +" was added to gnu2 elimination!";
+				chat->encodeString16(StringUtils::utf8ToWide(message));
+				sendMessageToPeers(chat);
+				delete chat;
+				return;
+			}
+			else
+			{
+				std::string message = "Track " + newTrack + " does not exist or is not installed.";
+				sendStringToPeer(message, peer);
+				return;
 			}
 		}
 	}
     else if (argv[0] == "gnu" || argv[0] == "gnu2")
     {
-		if (!commandPermitted(cmd, peer, hostRights))
-		{
-			return;
-		}
-        else if (m_gnu_elimination)
+        if (m_gnu_elimination)
         {
             NetworkString* chat = getNetworkString();
             chat->addUInt8(LE_CHAT);
@@ -6609,6 +6616,8 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         else
         {
+			if (!commandPermitted(cmd, peer, hostRights)) return;
+
 			if (argv[0] == "gnu2")
 			{
 				m_gnu2_activated = true;
@@ -6655,11 +6664,7 @@ void ServerLobby::handleServerCommand(Event* event,
     }
     else if (argv[0] == "nognu")
     {        
-		if (!commandPermitted(cmd, peer, hostRights))
-        {
-            return;
-        }
-        else if (!m_gnu_elimination)
+		if (!m_gnu_elimination)
         {
             NetworkString* chat = getNetworkString();
             chat->addUInt8(LE_CHAT);
@@ -6671,6 +6676,8 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         else
         {
+			if (!commandPermitted(cmd, peer, hostRights)) return;
+
             NetworkString* chat = getNetworkString();
             m_gnu_elimination = false;
             m_gnu_remained = 0;
@@ -6881,6 +6888,7 @@ void ServerLobby::handleServerCommand(Event* event,
 			m_set_field = "";
 			std::string msg = isField ? "All soccer fields can be played again" : "All tracks can be played again";
 			sendStringToPeer(msg, peer);
+			Log::info("ServerLobby", "setfield all");
 			return;
 		}
 
@@ -6946,6 +6954,9 @@ void ServerLobby::handleServerCommand(Event* event,
 
 			// Send message to the lobby
 			sendStringToAllPeers(msg);
+
+			std::string msg2 = "setfield " + soccer_field_id;
+			Log::info("ServerLobby", msg2.c_str());
 		}
 		else
 		{
@@ -7880,7 +7891,6 @@ bool ServerLobby::canRace(STKPeer* peer) const
 
 		bool hasGnuKart = kt.first.find(m_gnu_kart) != kt.first.end();
 		if (hasGnuKart == false) return false;
-		//m_gnu_kart
 	}
 
     if (ServerConfig::m_soccer_tournament)
