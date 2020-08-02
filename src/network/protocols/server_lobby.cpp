@@ -3735,12 +3735,41 @@ void ServerLobby::clientDisconnected(Event* event)
         std::string name = StringUtils::wideToUtf8(p->getName());
         msg->encodeString(name);
         Log::info("ServerLobby", "%s disconnected", name.c_str());
+        
+        if (RaceEventManager::get())
+        {
+            if (ServerConfig::m_save_goals && RaceEventManager::get()->isRunning())
+            {
+                double phase = 0.0;
+                if (RaceManager::get()->hasTimeTarget())
+                {
+                    phase = (RaceManager::get()->getTimeTarget() - World::getWorld()->getTime())/RaceManager::get()->getTimeTarget();
+                }
+                else
+                {
+                    int red_scorers_count = 0; int blue_scorers_count = 0;
+                    SoccerWorld *sw = dynamic_cast<SoccerWorld*>(World::getWorld());
+                    if (sw)
+                    {
+                        red_scorers_count = sw->get_red_scorers_count();
+                        blue_scorers_count = sw->get_blue_scorers_count();
+                    }
+                    phase = 1.0*std::max(red_scorers_count, blue_scorers_count)/RaceManager::get()->getMaxGoal();
+                    std::string message = "red_scorers_cnt=" + std::to_string(red_scorers_count) + " / blue_scorers_cnt" + std::to_string(blue_scorers_count);
+                    message += " / max_goll=" + std::to_string(RaceManager::get()->getMaxGoal());
+                    Log::info("ServerLobby", message.c_str());
+                }
+                std::string message = "phase=" + std::to_string(phase);
+                Log::info("ServerLobby", message.c_str());
+                rem_gamescore3(name,phase);
+            }
+        }
     }
-
+    
 	if (m_peers_ready.find(event->getPeerSP()) != m_peers_ready.end())
 		m_peers_ready.erase(event->getPeerSP());
 
-    unsigned players_number;
+    unsigned players_number = 0;
     STKHost::get()->updatePlayers(NULL, NULL, &players_number);
     if (players_number == 0)
         resetToDefaultSettings();
@@ -3757,7 +3786,6 @@ void ServerLobby::clientDisconnected(Event* event)
         }, msg);
     updatePlayerList();
     delete msg;
-
     writeDisconnectInfoTable(event->getPeer());
 }   // clientDisconnected
 
@@ -5683,12 +5711,16 @@ void ServerLobby::handleServerConfiguration(Event* event)
         Log::warn("ServerLobby", "server-configurable is not enabled.");
         // return;
     }
-	if (event != NULL && /*event->getPeerSP() != m_server_owner.lock()*/ !(hasHostRights(event->getPeerSP())) )
+	if (event != NULL) /*&& event->getPeerSP() != m_server_owner.lock() ) */
 	{
-	    Log::warn("ServerLobby",
-	              "Client %d is not authorised to config server.",
-	               event->getPeer()->getHostId());
-	    // return;
+        auto peerSP = event->getPeerSP();
+        if (!hasHostRights(peerSP))
+        {
+            Log::warn("ServerLobby",
+            "Client %d is not authorised to config server.",
+            event->getPeer()->getHostId());
+            // return;
+        }
 	}
     int new_difficulty = ServerConfig::m_server_difficulty;
     int new_game_mode = ServerConfig::m_server_mode;
@@ -6054,33 +6086,34 @@ void ServerLobby::clientInGameWantsToBackLobby(Event* event)
             Log::info("ServerLobby", "%s left the game with kart id %d.",
                 peer->getAddress().toString().c_str(), id);
             
-                if (ServerConfig::m_save_goals){
-                    std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
-                    double phase = 0.0;
-                    if (RaceManager::get()->hasTimeTarget())
-                    {
-                        phase = (RaceManager::get()->getTimeTarget() - World::getWorld()->getTime())/RaceManager::get()->getTimeTarget();
-                    }
-                    else
-                    {
-                        int red_scorers_count = 0; int blue_scorers_count = 0;
-                        SoccerWorld *sw = dynamic_cast<SoccerWorld*>(World::getWorld());
-                        if (sw)
-                        {
-                            red_scorers_count = sw->get_red_scorers_count();
-                            blue_scorers_count = sw->get_blue_scorers_count();
-                        }
-                        phase = 1.0*std::max(red_scorers_count, blue_scorers_count)/RaceManager::get()->getMaxGoal();
-                        std::string message = "red_scorers_cnt=" + std::to_string(red_scorers_count) + " / blue_scorers_cnt" + std::to_string(blue_scorers_count);
-                        message += " / max_goll=" + std::to_string(RaceManager::get()->getMaxGoal());
-                        Log::info("ServerLobby", message.c_str());
-                    }
-                    std::string message = "phase=" + std::to_string(phase);
-                    Log::info("ServerLobby", message.c_str());
-                    rem_gamescore2(username,phase);
-                    rki.setNetworkPlayerProfile(
-                    std::shared_ptr<NetworkPlayerProfile>());
+            rki.setNetworkPlayerProfile(std::shared_ptr<NetworkPlayerProfile>());
+            
+            if (ServerConfig::m_save_goals)
+            {
+                std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+                double phase = 0.0;
+                if (RaceManager::get()->hasTimeTarget())
+                {
+                    phase = (RaceManager::get()->getTimeTarget() - World::getWorld()->getTime())/RaceManager::get()->getTimeTarget();
                 }
+                else
+                {
+                    int red_scorers_count = 0; int blue_scorers_count = 0;
+                    SoccerWorld *sw = dynamic_cast<SoccerWorld*>(World::getWorld());
+                    if (sw)
+                    {
+                        red_scorers_count = sw->get_red_scorers_count();
+                        blue_scorers_count = sw->get_blue_scorers_count();
+                    }
+                    phase = 1.0*std::max(red_scorers_count, blue_scorers_count)/RaceManager::get()->getMaxGoal();
+                    std::string message = "red_scorers_cnt=" + std::to_string(red_scorers_count) + " / blue_scorers_cnt" + std::to_string(blue_scorers_count);
+                    message += " / max_goll=" + std::to_string(RaceManager::get()->getMaxGoal());
+                    Log::info("ServerLobby", message.c_str());
+                }
+                std::string message = "phase=" + std::to_string(phase);
+                Log::info("ServerLobby", message.c_str());
+                rem_gamescore2(username,phase);
+            }
         }
         else
         {
