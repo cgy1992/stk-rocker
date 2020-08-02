@@ -329,6 +329,9 @@ private:
 
 	std::string m_set_field;
 
+	std::map<std::string, std::vector<std::string>> m_command_voters; // m_command_votes[command][usernames]
+
+
     // connection management
     void clientDisconnected(Event* event);
     void connectionRequested(Event* event);
@@ -458,6 +461,8 @@ private:
     bool canRace(STKPeer* peer) const;
     bool hasHostRights(std::shared_ptr<STKPeer>& peer) const;
     bool hasHostRights(STKPeer* peer) const;
+	bool voteForCommand(std::shared_ptr<STKPeer>& peer, std::string command);
+	bool commandPermitted(std::string command, std::shared_ptr<STKPeer>& peer, bool hostRights);
 	bool isVIP(std::shared_ptr<STKPeer>& peer) const;
 	bool isVIP(STKPeer* peer) const;
     void loadTracksQueueFromConfig();
@@ -477,6 +482,9 @@ private:
 	bool serverAndPeerHaveTrack(STKPeer* peer, std::string track_id) const;
 	bool serverAndPeerHaveKart(std::shared_ptr<STKPeer>& peer, std::string track_id) const;
 	void setServerMode(unsigned char difficulty, unsigned char game_mode, unsigned char soccer_goal_target, std::shared_ptr<STKPeer> peer);
+	bool stringToServerMode(std::string server_mode_str, unsigned char &out_game_mode, unsigned char &out_soccer_goal_target);
+	std::string serverModeToString(unsigned char game_mode, unsigned char soccer_goal_target);
+
 public:
              ServerLobby();
     virtual ~ServerLobby();
