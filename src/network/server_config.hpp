@@ -96,6 +96,26 @@ namespace ServerConfig
         SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "save-goals",
         "Set up if the goals are shaved. God shave the Queen!"));
         
+    SERVER_CFG_PREFIX BoolServerConfigParam m_super_tournament
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "super-tournament",
+        "Set up for advanced supertournament options."));
+        
+    SERVER_CFG_PREFIX BoolServerConfigParam m_rank_1vs1
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "rank-1vs1",
+        "Set up for advanced 1vs1-ranking options."));
+    
+    SERVER_CFG_PREFIX BoolServerConfigParam m_rank_1vs1_2
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "rank-1vs1-2",
+        "Set up for advanced 1vs1-ranking options."));
+    
+    SERVER_CFG_PREFIX BoolServerConfigParam m_rank_1vs1_3
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "rank-1vs1-3",
+        "Set up for advanced 1vs1-ranking options."));
+        
+    SERVER_CFG_PREFIX BoolServerConfigParam m_rank_3vs3
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "rank-3vs3",
+        "Set up for advanced 3vs3-ranking options."));
+        
     SERVER_CFG_PREFIX IntServerConfigParam m_server_port
         SERVER_CFG_DEFAULT(IntServerConfigParam(0, "server-port",
         "Port used in server, if you specify 0, it will use the server port "

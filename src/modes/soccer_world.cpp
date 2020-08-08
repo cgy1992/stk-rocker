@@ -320,8 +320,23 @@ void SoccerWorld::init()
 
 }   // init
 
+
+// Kommentare sind unnötig
+int SoccerWorld::get_red_scorers_count()
+{
+    return m_red_scorers.size();
+}
+
+int SoccerWorld::get_blue_scorers_count()
+{
+    return m_blue_scorers.size();
+}
+
+
+
 //-----------------------------------------------------------------------------
 /** Called when a soccer game is restarted.
+ *
  */
 void SoccerWorld::reset(bool restart)
 {
@@ -501,14 +516,18 @@ auto split(const std::string& value, char separator)
 void add_goalscore(std::string player_name)
 {
     // Datei erstellen
-    std::string fuck="python3 update_list.py "+player_name+" goals";
-    system(fuck.c_str());
+    std::string singdrossel;
+    //if(ServerConfig::m_rank_1vs1) singdrossel="python3 update_list.py "+player_name+" goals 0 1vs1";
+    singdrossel="python3 update_list.py "+player_name+" goals 0 3vs3";
+    system(singdrossel.c_str());
 }
 
 void add_gamescore(std::string player_name)
 {
-    std::string fuck="python3 update_list.py "+player_name+" games";
-    system(fuck.c_str());
+    std::string ringdrossel;
+    //if(ServerConfig::m_rank_1vs1) ringdrossel="python3 update_list.py "+player_name+" games 0 1vs1";
+    ringdrossel="python3 update_list.py "+player_name+" games 0 3vs3";
+    system(ringdrossel.c_str());
 }
 
 
@@ -571,7 +590,22 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
         {
             Log::info("SoccerWorld", "[Goal] %s scored a goal for %s",
                 player_name.c_str(), team_name.c_str());
-                if (ServerConfig::m_save_goals) add_goalscore(player_name);
+                if (ServerConfig::m_rank_3vs3) add_goalscore(player_name);
+                if (ServerConfig::m_rank_1vs1)
+                {
+                    std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1";
+                    system(singdrossel.c_str());
+                }
+                else if (ServerConfig::m_rank_1vs1_2)
+                {
+                    std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_2";
+                    system(singdrossel.c_str());
+                }
+                else if (ServerConfig::m_rank_1vs1_3)
+                {
+                    std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_3";
+                    system(singdrossel.c_str());
+                }
             m_karts[sd.m_id]->getKartModel()
                 ->setAnimation(KartModel::AF_WIN_START, true/* play_non_loop*/);
         }

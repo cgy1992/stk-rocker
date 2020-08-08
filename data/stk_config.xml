@@ -577,6 +577,7 @@
   <network-ports server-discovery-port="12757" client-port="2758" server-port="2759"/>
   <network-ports server-discovery-port="12757" client-port="12758" server-port="12756"/>
   <network-ports server-discovery-port="12757" client-port="12758" server-port="12755"/>
+  <network-ports server-discovery-port="12757" client-port="12758" server-port="12754"/>
 
   <!-- Configurable values used in SmoothNetworkBody class:
        min-adjust-length and max-adjust-length: Error in length smaller or larger

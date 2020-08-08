@@ -169,6 +169,10 @@ public:
     virtual const std::string& getIdent() const OVERRIDE;
 
     virtual void update(int ticks) OVERRIDE;
+    
+    // 
+    int get_red_scorers_count();
+    int get_blue_scorers_count();
 
     bool shouldDrawTimer() const OVERRIDE { return !isStartPhase(); }
     // ------------------------------------------------------------------------
