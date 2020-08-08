@@ -2502,11 +2502,8 @@ void ServerLobby::update(int ticks)
         }
         if (ServerConfig::m_save_goals)
         {
-<<<<<<< HEAD
             if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) system("python3 update_wiki.py 1vs1");
-=======
             if (ServerConfig::m_rank_1vs1) system("python3 update_wiki.py 1vs1");
->>>>>>> 6751c4fcbcefff7ab7d82ac47dfbed207a258bfd
             else system("python3 update_wiki.py 3vs3");
         }
         Log::info("ServerLobby", "End of game message sent");
