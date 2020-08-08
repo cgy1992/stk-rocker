@@ -178,6 +178,7 @@ ServerLobby::ServerLobby() : LobbyProtocol()
 	//ServerConfig::m_owner_less = true;
 	//ServerConfig::m_min_start_game_players = 1;
 	//ServerConfig::m_server_configurable = true;
+	//ServerConfig::m_start_game_counter = 180;
 
     m_client_server_host_id.store(0);
     m_lobby_players.store(0);
@@ -2922,28 +2923,32 @@ void ServerLobby::startSelection(const Event *event)
 	m_command_voters.clear();
 
 	if (m_gnu_elimination)
+	{
 		m_available_kts.first.insert(m_gnu_kart);
-
-	m_available_kts.first.insert("addon_alternative-tux");
-	m_available_kts.first.insert("addon_android");
-	m_available_kts.first.insert("addon_beagle_2");
-	m_available_kts.first.insert("addon_blinky");
-	m_available_kts.first.insert("addon_buggie");
-	m_available_kts.first.insert("addon_dashie--cyber-bunny-");
-	m_available_kts.first.insert("addon_elephpant");
-	m_available_kts.first.insert("addon_evil-tux-v1");
-	m_available_kts.first.insert("addon_fantasma-gnu");
-	m_available_kts.first.insert("addon_firefox");
-	m_available_kts.first.insert("addon_geeko");
-	m_available_kts.first.insert("addon_hk-pig");
-	m_available_kts.first.insert("addon_minix");
-	m_available_kts.first.insert("addon_mozilla");
-	m_available_kts.first.insert("addon_mr-iceblock");
-	m_available_kts.first.insert("addon_penny_1");
-	m_available_kts.first.insert("addon_python");
-	m_available_kts.first.insert("addon_supertuxcart");
-	m_available_kts.first.insert("addon_ubuntu");
-	m_available_kts.first.insert("addon_vlc");
+	}
+	else
+	{
+		m_available_kts.first.insert("addon_alternative-tux");
+		m_available_kts.first.insert("addon_android");
+		m_available_kts.first.insert("addon_beagle_2");
+		m_available_kts.first.insert("addon_blinky");
+		m_available_kts.first.insert("addon_buggie");
+		m_available_kts.first.insert("addon_dashie--cyber-bunny-");
+		m_available_kts.first.insert("addon_elephpant");
+		m_available_kts.first.insert("addon_evil-tux-v1");
+		m_available_kts.first.insert("addon_fantasma-gnu");
+		m_available_kts.first.insert("addon_firefox");
+		m_available_kts.first.insert("addon_geeko");
+		m_available_kts.first.insert("addon_hk-pig");
+		m_available_kts.first.insert("addon_minix");
+		m_available_kts.first.insert("addon_mozilla");
+		m_available_kts.first.insert("addon_mr-iceblock");
+		m_available_kts.first.insert("addon_penny_1");
+		m_available_kts.first.insert("addon_python");
+		m_available_kts.first.insert("addon_supertuxcart");
+		m_available_kts.first.insert("addon_ubuntu");
+		m_available_kts.first.insert("addon_vlc");
+	}
 
     if (!m_tracks_queue.empty())
     {
@@ -4571,10 +4576,26 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
         else
         {
             auto peers = STKHost::get()->getPeers();
-            for (auto& peer: peers)
-            {
-                peer->setAlwaysSpectate(false);
-            }
+
+			if (ServerConfig::m_race_tournament)
+			{
+				for (auto peer : peers)
+				{
+					std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+					bool found = m_race_tournament_players.find(username) != m_race_tournament_players.end();
+					if (found)
+						peer->setAlwaysSpectate(false);
+					else
+						peer->setAlwaysSpectate(true);
+				}
+			}
+			else
+			{
+				for (auto& peer : peers)
+				{
+					peer->setAlwaysSpectate(false);
+				}
+			}
         }
     }
 
@@ -6995,20 +7016,9 @@ void ServerLobby::handleServerCommand(Event* event,
 			return;
 		}
 
-		if (!commandPermitted(cmd, peer, hostRights)) return;
-
 		std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
 
 		std::string soccer_field_id = argv[1];
-
-		if (soccer_field_id == "all")
-		{
-			m_set_field = "";
-			std::string msg = isField ? "All soccer fields can be played again" : "All tracks can be played again";
-			sendStringToPeer(msg, peer);
-			Log::info("ServerLobby", "setfield all");
-			return;
-		}
 
 		if (soccer_field_id == "ice") soccer_field_id = "icy_soccer_field";
 		else if (soccer_field_id == "grass") soccer_field_id = "soccer_field";
@@ -7031,7 +7041,8 @@ void ServerLobby::handleServerCommand(Event* event,
 		else if (soccer_field_id == "vacuum") soccer_field_id = "addon_vivid-vacuum";
 		else if (soccer_field_id == "mountain") soccer_field_id = "addon_mountain-soccer--updated-";
 		else if (soccer_field_id == "box") soccer_field_id = "addon_box";
-		else if (soccer_field_id == "soccerarena") soccer_field_id = "addon_soccer-arena";
+		else if (soccer_field_id == "soccerarena") soccer_field_id = "addon_soccer-arena-x";
+		else if (soccer_field_id == "super") soccer_field_id = "addon_supertournament-field";
 
 		else if (soccer_field_id == "myoldtrack") soccer_field_id = "addon_myoldtrack";
 		else if (soccer_field_id == "xtreme" || soccer_field_id == "xtremetrack") soccer_field_id = "addon_x-treme-track";
@@ -7050,7 +7061,7 @@ void ServerLobby::handleServerCommand(Event* event,
 		// Check that peer and server have the track
 		std::shared_ptr<STKPeer> player_peer = STKHost::get()->findPeerByName(StringUtils::utf8ToWide(peer_username));
 
-		bool found = serverAndPeerHaveTrack(player_peer, soccer_field_id);
+		bool found = serverAndPeerHaveTrack(player_peer, soccer_field_id) || soccer_field_id == "all";
 
 		if (!(found))
 		{
@@ -7065,16 +7076,29 @@ void ServerLobby::handleServerCommand(Event* event,
 
 		if (found)
 		{
-			m_set_field = soccer_field_id;
+			if (!commandPermitted(cmd, peer, hostRights)) return;
 
-			std::string msg = isField ? "Next played soccer field will be " + soccer_field_id + "." :
-				"Next played track will be " + soccer_field_id + ".";
+			if (soccer_field_id == "all")
+			{
+				m_set_field = "";
+				std::string msg = isField ? "All soccer fields can be played again" : "All tracks can be played again";
+				sendStringToPeer(msg, peer);
+				Log::info("ServerLobby", "setfield all");
+				return;
+			}
+			else
+			{
+				m_set_field = soccer_field_id;
 
-			// Send message to the lobby
-			sendStringToAllPeers(msg);
+				std::string msg = isField ? "Next played soccer field will be " + soccer_field_id + "." :
+					"Next played track will be " + soccer_field_id + ".";
 
-			std::string msg2 = "setfield " + soccer_field_id;
-			Log::info("ServerLobby", msg2.c_str());
+				// Send message to the lobby
+				sendStringToAllPeers(msg);
+
+				std::string msg2 = "setfield " + soccer_field_id;
+				Log::info("ServerLobby", msg2.c_str());
+			}
 		}
 		else
 		{
@@ -7083,7 +7107,6 @@ void ServerLobby::handleServerCommand(Event* event,
 			sendStringToPeer(msg, peer);
 			return;
 		}
-		
 	}
 	if (argv[0] == "mode")
 	{
@@ -8109,6 +8132,7 @@ bool ServerLobby::voteForCommand(std::shared_ptr<STKPeer>& peer, std::string com
 		m_command_voters[command].push_back(username);
 		std::string message = username + " voted for \"/" + command + "\" (" + std::to_string(m_command_voters[command].size()) + " of " + std::to_string(playerCount) + " votes).";
 		sendStringToAllPeers(message);
+		Log::info("ServerLobby", message.c_str());
 	}
 	
 	
