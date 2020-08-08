@@ -2003,7 +2003,9 @@ void ServerLobby::rejectLiveJoin(STKPeer* peer, BackLobbyReason blr)
  */
 void rem_gamescore3(std::string player_name, double phase)
 {
-    std::string ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase);
+    std::string ringdrossel;
+    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 1vs1";
+    else ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 3vs3";
     system(ringdrossel.c_str());
 }
 
@@ -2485,7 +2487,23 @@ void ServerLobby::update(int ticks)
         m_timeout.store((int64_t)StkTime::getMonoTimeMs() + 15000);
         m_state = RESULT_DISPLAY;
         sendMessageToPeers(m_result_ns, /*reliable*/ true);
-        if (ServerConfig::m_save_goals) system("python3 update_wiki.py");
+        if (ServerConfig::m_rank_1vs1)
+        {
+            system("python3 update_elo.py 1vs1");
+        }
+        if (ServerConfig::m_rank_1vs1_2)
+        {
+            system("python3 update_elo.py 1vs1_2");
+        }
+        if (ServerConfig::m_rank_1vs1_3)
+        {
+            system("python3 update_elo.py 1vs1_3");
+        }
+        if (ServerConfig::m_save_goals)
+        {
+            if (ServerConfig::m_rank_1vs1) system("python3 update_wiki.py 1vs1");
+            else system("python3 update_wiki.py 3vs3");
+        }
         Log::info("ServerLobby", "End of game message sent");
         break;
     case RESULT_DISPLAY:
@@ -5067,13 +5085,17 @@ void ServerLobby::finishedLoadingWorld()
  */
 void add_gamescore2(std::string player_name)
 {
-    std::string singdrossel="python3 update_list.py "+player_name+" games 0";
+    std::string singdrossel;
+    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//singdrossel="python3 update_list.py "+player_name+" games 0 1vs1";
+    else singdrossel="python3 update_list.py "+player_name+" games 0 3vs3";
     system(singdrossel.c_str());
 }
 
 void rem_gamescore2(std::string player_name, double phase)
 {
-    std::string ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase);
+    std::string ringdrossel;
+    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 1vs1";
+    else ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 3vs3";
     system(ringdrossel.c_str());
 }
 
@@ -5085,11 +5107,18 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
     Log::info("ServerLobby", "Peer %d has finished loading world at %lf",
         peer->getHostId(), StkTime::getRealTime());
     if (ServerConfig::m_save_goals){
-        std::string username = StringUtils::wideToUtf8(
-		    peer->getPlayerProfiles()[0]->getName());
-            add_gamescore2(username);
+        std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+        add_gamescore2(username);
     }
-    
+    if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3)
+    {
+        std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+        std::string singdrossel;
+        if (ServerConfig::m_rank_1vs1_2) singdrossel="python3 current_1vs1_players.py "+username+" 1vs1_2";
+        else if (ServerConfig::m_rank_1vs1_3) singdrossel="python3 current_1vs1_players.py "+username+" 1vs1_3";
+        else singdrossel="python3 current_1vs1_players.py "+username+" 1vs1";
+        system(singdrossel.c_str());
+    }
 }   // finishedLoadingWorldClient
 
 //-----------------------------------------------------------------------------
@@ -6329,7 +6358,7 @@ void ServerLobby::handleServerCommand(Event* event,
             peer->setAlwaysSpectate(false);
         updatePlayerList();
     }
-    else if (argv[0] == "listserveraddon")
+    if (argv[0] == "listserveraddon")
     {
         NetworkString* chat = getNetworkString();
         chat->addUInt8(LE_CHAT);
@@ -6406,7 +6435,7 @@ void ServerLobby::handleServerCommand(Event* event,
         peer->sendPacket(chat, true/*reliable*/);
         delete chat;
     }
-    else if (StringUtils::startsWith(cmd, "playerhasaddon"))
+    if (StringUtils::startsWith(cmd, "playerhasaddon"))
     {
         NetworkString* chat = getNetworkString();
         chat->addUInt8(LE_CHAT);
@@ -6463,7 +6492,7 @@ void ServerLobby::handleServerCommand(Event* event,
         peer->sendPacket(chat, true/*reliable*/);
         delete chat;
     }
-    else if (StringUtils::startsWith(cmd, "kick"))
+    if (StringUtils::startsWith(cmd, "kick"))
     {
         std::string player_name;
         if (StringUtils::startsWith(cmd, "kickban"))
@@ -6499,13 +6528,15 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             if (StringUtils::startsWith(cmd, "kickban"))
             {
+                if (!isVIP(peer)) return;
                 Log::info("ServerLobby", "%s is now banned", player_name.c_str());
                 m_temp_banned.insert(player_name);
             }
         }
     }
-    else if (StringUtils::startsWith(cmd, "unban"))
+    if (StringUtils::startsWith(cmd, "unban"))
     {
+        if (!isVIP(peer)) return;
         std::string player_name;
         if (cmd.length() > 6)
         {
@@ -6528,8 +6559,10 @@ void ServerLobby::handleServerCommand(Event* event,
             m_temp_banned.erase(player_name);
         }
     }
-    else if (StringUtils::startsWith(cmd, "ban"))
+    if (StringUtils::startsWith(cmd, "ban"))
     {
+        if (!isVIP(peer)) return;
+        
         std::string player_name;
         if (cmd.length() > 4)
         {
@@ -6552,7 +6585,7 @@ void ServerLobby::handleServerCommand(Event* event,
             m_temp_banned.insert(player_name);
         }
     }
-    else if (StringUtils::startsWith(cmd, "playeraddonscore"))
+    if (StringUtils::startsWith(cmd, "playeraddonscore"))
     {
         NetworkString* chat = getNetworkString();
         chat->addUInt8(LE_CHAT);
@@ -6595,7 +6628,7 @@ void ServerLobby::handleServerCommand(Event* event,
         peer->sendPacket(chat, true/*reliable*/);
         delete chat;
     }
-    else if (argv[0] == "serverhasaddon")
+    if (argv[0] == "serverhasaddon")
     {
         NetworkString* chat = getNetworkString();
         chat->addUInt8(LE_CHAT);
@@ -6628,7 +6661,7 @@ void ServerLobby::handleServerCommand(Event* event,
         peer->sendPacket(chat, true/*reliable*/);
         delete chat;
     }
-    else if (argv[0] == "help")
+    if (argv[0] == "help")
     {
         NetworkString* chat = getNetworkString();
         chat->addUInt8(LE_CHAT);
@@ -6637,7 +6670,7 @@ void ServerLobby::handleServerCommand(Event* event,
         peer->sendPacket(chat, true/*reliable*/);
         delete chat;
     }
-    else if (argv[0] == "commands")
+    if (argv[0] == "commands")
     {
         NetworkString* chat = getNetworkString();
         chat->addUInt8(LE_CHAT);
@@ -6646,7 +6679,7 @@ void ServerLobby::handleServerCommand(Event* event,
         peer->sendPacket(chat, true/*reliable*/);
         delete chat;
     }
-	else if (argv[0] == "gnu2addtrack")
+	if (argv[0] == "gnu2addtrack")
 	{
 		if (argv.size() > 1)
 		{
@@ -6675,7 +6708,7 @@ void ServerLobby::handleServerCommand(Event* event,
 			}
 		}
 	}
-    else if (argv[0] == "gnu" || argv[0] == "gnu2")
+    if (argv[0] == "gnu" || argv[0] == "gnu2")
     {
         if (m_gnu_elimination)
         {
@@ -6747,7 +6780,7 @@ void ServerLobby::handleServerCommand(Event* event,
             delete chat;
         }
     }
-    else if (argv[0] == "nognu")
+    if (argv[0] == "nognu")
     {        
 		if (!m_gnu_elimination)
         {
@@ -6779,7 +6812,7 @@ void ServerLobby::handleServerCommand(Event* event,
             delete chat;
         }
     }
-    else if (argv[0] == "tell")
+    if (argv[0] == "tell")
     {        
         if (argv.size() == 1)
         {
@@ -6803,7 +6836,7 @@ void ServerLobby::handleServerCommand(Event* event,
             writeOwnReport(peer.get(), peer.get(), ans);
         }
     }
-    else if (argv[0] == "standings")
+    if (argv[0] == "standings")
     {
         if (argv.size() > 1)
         {
@@ -6825,7 +6858,7 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         sendGnuStandingsToPeer(peer);
     }
-    else if (argv[0] == "teamchat")
+    if (argv[0] == "teamchat")
     {
         NetworkString* chat = getNetworkString();
         chat->addUInt8(LE_CHAT);
@@ -6835,7 +6868,7 @@ void ServerLobby::handleServerCommand(Event* event,
         peer->sendPacket(chat, true/*reliable*/);
         delete chat;
     }
-    else if (argv[0] == "to")
+    if (argv[0] == "to")
     {
         if (argv.size() == 1) {
             NetworkString* chat = getNetworkString();
@@ -6858,14 +6891,14 @@ void ServerLobby::handleServerCommand(Event* event,
             delete chat;
         }
     }
-    else if (argv[0] == "public")
+    if (argv[0] == "public")
     {
         m_message_receivers[peer.get()].clear();
         m_team_speakers.erase(peer.get());
         std::string s = "Your messages are now public";
         sendStringToPeer(s, peer);
     }
-    else if (argv[0] == "record")
+    if (argv[0] == "record")
     {
         NetworkString* chat = getNetworkString();
         chat->addUInt8(LE_CHAT);
@@ -6951,7 +6984,7 @@ void ServerLobby::handleServerCommand(Event* event,
         peer->sendPacket(chat, true/*reliable*/);
         delete chat;
     }
-	else if (argv[0] == "setfield" || argv[0] == "settrack")
+	if (argv[0] == "setfield" || argv[0] == "settrack")
 	{
 		bool isField = (argv[0] == "setfield");
 
@@ -7052,7 +7085,7 @@ void ServerLobby::handleServerCommand(Event* event,
 		}
 		
 	}
-	else if (argv[0] == "mode")
+	if (argv[0] == "mode")
 	{
 		if (argv.size() != 2)
 		{
@@ -7088,7 +7121,34 @@ void ServerLobby::handleServerCommand(Event* event,
 			}
 		}
 	}
-    else if (ServerConfig::m_soccer_tournament)
+	if (ServerConfig::m_super_tournament)
+    {
+        std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+        if (argv[0] == "join")
+        {
+            std::string kali="python3 join.py " +peer_username;
+            system(kali.c_str());
+            std::string msg = "Successfully joined the tournament.";
+            sendStringToPeer(msg, peer);
+        }
+        if (argv[0] == "ican" || argv[0] == "icant")
+        {
+            bool valid_time=(argv[1]=="mo16" || argv[1]=="mo17" || argv[1]=="mo18" || argv[1]=="tu16" || argv[1]=="tu17" || argv[1]=="tu18" || argv[1]=="we16" || argv[1]=="we17" || argv[1]=="we18" || argv[1]=="th16" || argv[1]=="th17" || argv[1]=="th18" ||argv[1]=="fr16" || argv[1]=="fr17" || argv[1]=="fr18" ||argv[1]=="sa16" || argv[1]=="sa17" || argv[1]=="sa18" || argv[1]=="su16" || argv[1]=="su17" || argv[1]=="su18" || argv[1]=="mo" || argv[1]=="tu" || argv[1]=="we" || argv[1]=="th" || argv[1]=="fr" || argv[1]=="sa" ||argv[1]=="su" || argv[1]=="weekdays" || argv[1]=="weekends" || argv[1]=="weekdays16" || argv[1]=="weekends16" ||argv[1]=="weekdays17" || argv[1]=="weekends17" ||argv[1]=="weekdays18" || argv[1]=="weekends18" ||argv[1]=="16" || argv[1]=="17" || argv[1]=="18"||argv[1]=="all");
+            if(valid_time)
+            {
+                std::string kali="python3 time_poll.py " +peer_username+" "+argv[1]+" "+argv[0];
+                system(kali.c_str());
+                std::string msg = "Successfully edited timepoll.";
+                sendStringToPeer(msg, peer);
+            }
+            else
+            {
+                std::string msg = "Please specify a valid time. Format: /ican mo16 (meaning I can Monday 16 UTC), /ican tu (I can on Tuesdays), /ican weekdays (I can on weekdays), /ican weekends17 (I can on weekends at 17 UTC), /ican 18 (I can each day on 18 UTC), /all (I can at every time). Same format for /icant. Note that /icant only has an effect after using /ican at least once.";
+                sendStringToPeer(msg, peer);
+            }
+        }
+    }
+    if (ServerConfig::m_soccer_tournament)
     {
         std::string peer_username = StringUtils::wideToUtf8(
             peer->getPlayerProfiles()[0]->getName());
@@ -7221,7 +7281,7 @@ void ServerLobby::handleServerCommand(Event* event,
             updatePlayerList();
         }
     }
-	else if (ServerConfig::m_race_tournament)
+	if (ServerConfig::m_race_tournament)
 	{
 		std::string peer_username = StringUtils::wideToUtf8(
             peer->getPlayerProfiles()[0]->getName());
@@ -7330,17 +7390,17 @@ void ServerLobby::handleServerCommand(Event* event,
             updatePlayerList();
         }
 	}
-    else
-    {
-        NetworkString* chat = getNetworkString();
-        chat->addUInt8(LE_CHAT);
-        chat->setSynchronous(true);
-        std::string msg = "Unknown command: ";
-        msg += cmd;
-        chat->encodeString16(StringUtils::utf8ToWide(msg));
-        peer->sendPacket(chat, true/*reliable*/);
-        delete chat;
-    }
+    //else
+    //{
+    //    NetworkString* chat = getNetworkString();
+    //    chat->addUInt8(LE_CHAT);
+    //    chat->setSynchronous(true);
+    //    std::string msg = "Unknown command: ";
+    //    msg += cmd;
+    //    chat->encodeString16(StringUtils::utf8ToWide(msg));
+    //    peer->sendPacket(chat, true/*reliable*/);
+    //    delete chat;
+    //}
 }   // handleServerCommand
 //-----------------------------------------------------------------------------
 void ServerLobby::updateGnuElimination()
