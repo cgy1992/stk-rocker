@@ -2002,6 +2002,8 @@ void ServerLobby::rejectLiveJoin(STKPeer* peer, BackLobbyReason blr)
 /** This message is like kartSelectionRequested, but it will send the peer
  *  load world message if he can join the current started game.
  */
+bool count_supertournament_game;
+
 void rem_gamescore3(std::string player_name, double phase)
 {
     std::string ringdrossel;
@@ -2061,7 +2063,8 @@ void ServerLobby::liveJoinRequest(Event* event)
             Log::info("ServerLobby", "%s live joining with reserved kart id %d.",
                 peer->getAddress().toString().c_str(), id);
             peer->addAvailableKartID(id);
-            if (ServerConfig::m_save_goals){
+            if (ServerConfig::m_save_goals)
+            {
                     std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
                     double phase = 0.0;
                     if (RaceManager::get()->hasTimeTarget())
@@ -2085,7 +2088,17 @@ void ServerLobby::liveJoinRequest(Event* event)
                     std::string message = "phase=" + std::to_string(phase);
                     Log::info("ServerLobby", message.c_str());
                     rem_gamescore3(username,phase);
-                }
+            }
+            if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
+            {
+                std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+                std::string singdrossel;
+                std::string redname=ServerConfig::m_red_team_name;
+                std::string bluename=ServerConfig::m_blue_team_name;
+                if(m_tournament_red_players.count(username) > 0) singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+redname;
+                else singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+bluename;
+                system(singdrossel.c_str());
+            }
         }
     }
     else
@@ -2506,6 +2519,10 @@ void ServerLobby::update(int ticks)
             if (ServerConfig::m_rank_1vs1) system("python3 update_wiki.py 1vs1");
             else system("python3 update_wiki.py 3vs3");
         }
+        if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
+        {
+            system("python3 supertournament_gameresult.py");
+        }
         Log::info("ServerLobby", "End of game message sent");
         break;
     case RESULT_DISPLAY:
@@ -2877,7 +2894,7 @@ void ServerLobby::startSelection(const Event *event)
 
 		if (!tournamentHasTournamentField(m_tournament_game))
 		{
-			tracks_erase.insert("addon_tournament-field");
+			tracks_erase.insert("addon_supertournament-field");
 		}
 
 		for (const std::string& kart_erase : karts_erase)
@@ -2908,10 +2925,10 @@ void ServerLobby::startSelection(const Event *event)
 		{
 			// ---------------
 			//selectSoccerField("addon_tournament-field");
-			if (m_available_kts.second.count("addon_tournament-field"))
+			if (m_available_kts.second.count("addon_supertournament-field"))
 			{
 				m_available_kts.second.clear();
-				m_available_kts.second.insert("addon_tournament-field");
+				m_available_kts.second.insert("addon_supertournament-field");
 			}
 			else
 			{
@@ -4359,13 +4376,13 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
                 player->setTeam(KART_TEAM_RED);
             else if (m_tournament_blue_players.count(utf8_online_name))
                 player->setTeam(KART_TEAM_BLUE);
-            if (tournamentColorsSwapped(m_tournament_game))
-            {
-                if (player->getTeam() == KART_TEAM_BLUE)
-                    player->setTeam(KART_TEAM_RED);
-                else if (player->getTeam() == KART_TEAM_RED)
-                    player->setTeam(KART_TEAM_BLUE);
-            }
+            //if (tournamentColorsSwapped(m_tournament_game))
+            //{
+            //    if (player->getTeam() == KART_TEAM_BLUE)
+            //        player->setTeam(KART_TEAM_RED);
+            //    else if (player->getTeam() == KART_TEAM_RED)
+            //        player->setTeam(KART_TEAM_BLUE);
+            //}
         }
         peer->addPlayer(player);
     }
@@ -5139,6 +5156,16 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
         if (ServerConfig::m_rank_1vs1_2) singdrossel="python3 current_1vs1_players.py "+username+" 1vs1_2";
         else if (ServerConfig::m_rank_1vs1_3) singdrossel="python3 current_1vs1_players.py "+username+" 1vs1_3";
         else singdrossel="python3 current_1vs1_players.py "+username+" 1vs1";
+        system(singdrossel.c_str());
+    }
+    if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
+    {
+        std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+        std::string singdrossel;
+        std::string redname=ServerConfig::m_red_team_name;
+        std::string bluename=ServerConfig::m_blue_team_name;
+        if(m_tournament_red_players.count(username) > 0) singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+redname;
+        else singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+bluename;
         system(singdrossel.c_str());
     }
 }   // finishedLoadingWorldClient
@@ -7171,6 +7198,18 @@ void ServerLobby::handleServerCommand(Event* event,
                 sendStringToPeer(msg, peer);
             }
         }
+        if (argv[0] == "count")
+        {
+            ServerConfig::m_count_supertournament_game=true;
+            std::string msg = "Counting enabled.";
+            sendStringToPeer(msg, peer);
+        }
+        if (argv[0] == "nocount")
+        {
+            ServerConfig::m_count_supertournament_game=false;
+            std::string msg = "Counting disabled.";
+            sendStringToPeer(msg, peer);
+        }
     }
     if (ServerConfig::m_soccer_tournament)
     {
@@ -7210,8 +7249,8 @@ void ServerLobby::handleServerCommand(Event* event,
                 }
                 m_fixed_lap = length;
             }
-            if (tournamentColorsSwapped(m_tournament_game) ^ tournamentColorsSwapped(old_game))
-                changeColors();
+            //if (tournamentColorsSwapped(m_tournament_game) ^ tournamentColorsSwapped(old_game))
+            //    changeColors();
             if (tournamentGoalsLimit(m_tournament_game) ^ tournamentGoalsLimit(old_game))
                 changeLimitForTournament(tournamentGoalsLimit(m_tournament_game));
             std::string msg = StringUtils::insertValues(

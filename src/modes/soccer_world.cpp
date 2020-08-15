@@ -606,6 +606,22 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
                     std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_3";
                     system(singdrossel.c_str());
                 }
+                if(ServerConfig::m_count_supertournament_game)
+                {
+                    std::string singdrossel;
+                    std::string bluename=ServerConfig::m_blue_team_name;
+                    std::string redname=ServerConfig::m_red_team_name;
+                    KartTeam teamrb = getKartTeam(sd.m_id);
+                    if (teamrb==KART_TEAM_RED)
+                    {
+                        singdrossel="python3 supertournament_updatecurrentgoals.py "+player_name+" "+redname;
+                    }
+                    if (teamrb==KART_TEAM_BLUE)
+                    {
+                        singdrossel="python3 supertournament_updatecurrentgoals.py "+player_name+" "+bluename;
+                    }
+                    system(singdrossel.c_str());
+                }
             m_karts[sd.m_id]->getKartModel()
                 ->setAnimation(KartModel::AF_WIN_START, true/* play_non_loop*/);
         }
@@ -613,6 +629,22 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
         {
             Log::info("SoccerWorld", "[Goal] %s scored an own goal for %s",
                 player_name.c_str(), team_name.c_str());
+            if(ServerConfig::m_count_supertournament_game)
+            {
+                std::string singdrossel;
+                std::string bluename=ServerConfig::m_blue_team_name;
+                std::string redname=ServerConfig::m_red_team_name;
+                KartTeam teamrb = getKartTeam(sd.m_id);
+                if (teamrb==KART_TEAM_RED)
+                {
+                    singdrossel="python3 supertournament_updatecurrentgoals.py red_own_goals "+bluename;
+                }
+                if (teamrb==KART_TEAM_BLUE)
+                {
+                    singdrossel="python3 supertournament_updatecurrentgoals.py blue_own_goals "+redname;
+                }
+                system(singdrossel.c_str());
+            }
             m_karts[sd.m_id]->getKartModel()
                 ->setAnimation(KartModel::AF_LOSE_START, true/* play_non_loop*/);
         }

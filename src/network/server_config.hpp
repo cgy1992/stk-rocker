@@ -87,6 +87,15 @@ namespace ServerConfig
     typedef MapServerConfigParam<std::string, uint32_t>
         StringToUIntServerConfigParam;
     // ========================================================================
+    SERVER_CFG_PREFIX BoolServerConfigParam m_count_supertournament_game
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "count","count"));
+    
+    SERVER_CFG_PREFIX StringServerConfigParam m_red_team_name
+        SERVER_CFG_DEFAULT(StringServerConfigParam("A","red-team-name","Name of the red team (A,B,C or D)."));
+        
+    SERVER_CFG_PREFIX StringServerConfigParam m_blue_team_name
+        SERVER_CFG_DEFAULT(StringServerConfigParam("B","blue-team-name","Name of the blue team (A,B,C or D)."));
+        
     SERVER_CFG_PREFIX StringServerConfigParam m_server_name
         SERVER_CFG_DEFAULT(StringServerConfigParam("STK Server", "server-name",
         "Name of server, encode in XML if you want to use unicode "
