@@ -2521,7 +2521,10 @@ void ServerLobby::update(int ticks)
         }
         if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
         {
-            system("python3 supertournament_gameresult.py");
+            std::string redname=ServerConfig::m_red_team_name;
+            std::string bluename=ServerConfig::m_blue_team_name;
+	    std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename;
+            system(singdrossel.c_str());
         }
         Log::info("ServerLobby", "End of game message sent");
         break;
@@ -7071,6 +7074,7 @@ void ServerLobby::handleServerCommand(Event* event,
 		else if (soccer_field_id == "box") soccer_field_id = "addon_box";
 		else if (soccer_field_id == "soccerarena") soccer_field_id = "addon_soccer-arena-x";
 		else if (soccer_field_id == "super") soccer_field_id = "addon_supertournament-field";
+		else if (soccer_field_id == "asteroid") soccer_field_id = "addon_asteroid-soccer";
 
 		else if (soccer_field_id == "myoldtrack") soccer_field_id = "addon_myoldtrack";
 		else if (soccer_field_id == "xtreme" || soccer_field_id == "xtremetrack") soccer_field_id = "addon_x-treme-track";
@@ -7173,7 +7177,7 @@ void ServerLobby::handleServerCommand(Event* event,
 		}
 	}
 	if (ServerConfig::m_super_tournament)
-    {
+        {
         std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
         if (argv[0] == "join")
         {
@@ -7200,15 +7204,52 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         if (argv[0] == "count")
         {
+	    if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            {
+                std::string msg = "You are not a referee";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+
             ServerConfig::m_count_supertournament_game=true;
             std::string msg = "Counting enabled.";
             sendStringToPeer(msg, peer);
         }
         if (argv[0] == "nocount")
         {
+	    if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            {
+                std::string msg = "You are not a referee";
+                sendStringToPeer(msg, peer);
+                return;
+            } 
             ServerConfig::m_count_supertournament_game=false;
             std::string msg = "Counting disabled.";
             sendStringToPeer(msg, peer);
+        }
+        if (argv[0] == "setteams")
+        {
+	    if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            {
+                std::string msg = "You are not a referee";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+            if (argv[1]=="A" || argv[1]=="B" || argv[1]=="C" || argv[1]=="D")
+            {
+                if (argv[2]=="A" || argv[2]=="B" || argv[2]=="C" || argv[2]=="D")
+		{
+                    ServerConfig::m_red_team_name=argv[1];
+                    ServerConfig::m_blue_team_name=argv[2];
+                    std::string msg = "Next match will be "+argv[1]+" vs "+argv[2]+".";
+                    sendStringToPeer(msg, peer);
+		}
+	    }
+	    else
+	    {
+                std::string msg = "Please use A, B, C or D as team name.";                                                                 
+                sendStringToPeer(msg, peer); 
+	    }
         }
     }
     if (ServerConfig::m_soccer_tournament)
@@ -7216,9 +7257,12 @@ void ServerLobby::handleServerCommand(Event* event,
         std::string peer_username = StringUtils::wideToUtf8(
             peer->getPlayerProfiles()[0]->getName());
         if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer))) 
-		{
-            std::string msg = "You are not a referee";
-            sendStringToPeer(msg, peer);
+	{
+            if(!ServerConfig::m_super_tournament)
+	    {
+		std::string msg = "You are not a referee";
+                sendStringToPeer(msg, peer);
+	    }
             return;
         }
         if (argv[0] == "game")
@@ -7291,10 +7335,10 @@ void ServerLobby::handleServerCommand(Event* event,
                     if (player_peer)
                     {
                         role_changed = StringUtils::insertValues(role_changed, "first team player");
-                        if (m_tournament_game & 2)
-                            player_peer->getPlayerProfiles()[0]->setTeam(KART_TEAM_BLUE);
-                        else
-                            player_peer->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
+                        //if (m_tournament_game & 2)
+                        //    player_peer->getPlayerProfiles()[0]->setTeam(KART_TEAM_BLUE);
+                        //else
+                        player_peer->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
                         sendStringToPeer(role_changed, player_peer);
                     }
                     break;
@@ -7306,10 +7350,10 @@ void ServerLobby::handleServerCommand(Event* event,
                     if (player_peer)
                     {
                         role_changed = StringUtils::insertValues(role_changed, "second team player");
-                        if (m_tournament_game & 2)
-                            player_peer->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
-                        else
-                            player_peer->getPlayerProfiles()[0]->setTeam(KART_TEAM_BLUE);
+                        //if (m_tournament_game & 2)
+                        //    player_peer->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
+                        //else
+                        player_peer->getPlayerProfiles()[0]->setTeam(KART_TEAM_BLUE);
                         sendStringToPeer(role_changed, player_peer);
                     }
                     break;

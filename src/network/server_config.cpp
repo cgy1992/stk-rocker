@@ -366,7 +366,7 @@ void loadServerLobbyFromConfig()
         m_addon_tracks_threshold = 0;
         m_addon_arenas_threshold = 0;
         m_addon_soccers_threshold = 0; // maybe 1 ?
-        m_must_have_tracks_string = "icy_soccer_field soccer_field lasdunassoccer addon_tournament-field";
+        m_must_have_tracks_string = "icy_soccer_field soccer_field lasdunassoccer addon_supertournament-field";
         m_team_choosing = true;
         m_ranked = false;
         m_server_configurable = false;
