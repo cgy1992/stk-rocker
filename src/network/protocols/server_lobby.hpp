@@ -329,6 +329,8 @@ private:
 
 	std::string m_set_field;
 
+	std::map<std::string, std::string> m_set_kart;
+
 	std::map<std::string, std::vector<std::string>> m_command_voters; // m_command_votes[command][usernames]
 
 
