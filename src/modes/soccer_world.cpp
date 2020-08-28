@@ -16,14 +16,13 @@
 //  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "modes/soccer_world.hpp"
+
 #include "main_loop.hpp"
-#include "network/server_config.hpp"
 #include "audio/music_manager.hpp"
 #include "audio/sfx_base.hpp"
 #include "config/user_config.hpp"
 #include "io/file_manager.hpp"
 #include "graphics/irr_driver.hpp"
-#include "guiengine/message_queue.hpp"
 #include "karts/abstract_kart_animation.hpp"
 #include "karts/kart_model.hpp"
 #include "karts/kart_properties.hpp"
@@ -31,6 +30,7 @@
 #include "karts/controller/network_player_controller.hpp"
 #include "network/network_config.hpp"
 #include "network/network_string.hpp"
+#include "network/server_config.hpp"
 #include "network/protocols/game_events_protocol.hpp"
 #include "network/stk_host.hpp"
 #include "network/stk_peer.hpp"
@@ -50,9 +50,6 @@
 #include <IMeshSceneNode.h>
 #include <numeric>
 #include <string>
-#include <filesystem>
-#include <iostream>
-#include <fstream>
 
 //=============================================================================
 class BallGoalData
@@ -209,7 +206,7 @@ public:
                 // Determine when y should be negative
                 y = -y;
             }
-			x = y / m_blue_goal_slope;
+            x = y / m_blue_goal_slope;
         }
         else
         {
@@ -221,7 +218,7 @@ public:
             {
                 y = -y;
             }
-			x = y / m_red_goal_slope;
+            x = y / m_red_goal_slope;
         }
         assert (!std::isnan(x));
         assert (!std::isnan(y));
@@ -251,6 +248,12 @@ SoccerWorld::SoccerWorld() : WorldWithRank()
         WorldStatus::setClockMode(CLOCK_CHRONO);
     }
 
+    stopped = false;
+    m_explicit_stop = false;
+    m_bad_red_goals = 0;
+    m_bad_blue_goals = 0;
+    m_init_red_goals = 0;
+    m_init_blue_goals = 0;
     m_frame_count = 0;
     m_use_highscores = false;
     m_red_ai = 0;
@@ -320,7 +323,6 @@ void SoccerWorld::init()
 
 }   // init
 
-
 // Kommentare sind unnötig
 int SoccerWorld::get_red_scorers_count()
 {
@@ -332,11 +334,8 @@ int SoccerWorld::get_blue_scorers_count()
     return m_blue_scorers.size();
 }
 
-
-
 //-----------------------------------------------------------------------------
 /** Called when a soccer game is restarted.
- *
  */
 void SoccerWorld::reset(bool restart)
 {
@@ -406,6 +405,7 @@ void SoccerWorld::reset(bool restart)
 //-----------------------------------------------------------------------------
 void SoccerWorld::onGo()
 {
+    Log::info("SoccerWorld", "The game starts now.");
     m_ball->setEnabled(true);
     m_ball->reset();
     WorldWithRank::onGo();
@@ -448,6 +448,20 @@ void SoccerWorld::update(int ticks)
 
     WorldWithRank::update(ticks);
     WorldWithRank::updateTrack(ticks);
+
+    // if (stopped)
+    // {
+    //     for (unsigned int i = 0; i < m_karts.size(); i++)
+    //     {
+    //         auto& kart = m_karts[i];
+    //         if (kart->isEliminated())
+    //             continue;
+    //         kart->getBody()->setLinearVelocity(Vec3(0.0f));
+    //         kart->getBody()->setAngularVelocity(Vec3(0.0f));
+    //         kart->getBody()->proceedToTransform(m_goal_transforms[i]);
+    //         kart->setTrans(m_goal_transforms[i]);
+    //     }
+    // }
 
     if (isGoalPhase())
     {
@@ -499,20 +513,6 @@ void SoccerWorld::update(int ticks)
 }   // update
 
 //-----------------------------------------------------------------------------
-auto split(const std::string& value, char separator)
-    -> std::vector<std::string>
-{
-    std::vector<std::string> result;
-    std::string::size_type p = 0;
-    std::string::size_type q;
-    while ((q = value.find(separator, p)) != std::string::npos) {
-        result.emplace_back(value, p, q - p);
-        p = q + 1;
-    }
-    result.emplace_back(value, p);
-    return result;
-}
-
 void add_goalscore(std::string player_name)
 {
     // Datei erstellen
@@ -529,7 +529,6 @@ void add_gamescore(std::string player_name)
     ringdrossel="python3 update_list.py "+player_name+" games 0 3vs3";
     system(ringdrossel.c_str());
 }
-
 
 void SoccerWorld::onCheckGoalTriggered(bool first_goal)
 {
@@ -586,67 +585,88 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
         }
         std::string team_name = (first_goal ? "red team" : "blue team");
         std::string player_name = StringUtils::wideToUtf8(sd.m_player);
-        if (sd.m_correct_goal)
-        {
-            Log::info("SoccerWorld", "[Goal] %s scored a goal for %s",
-                player_name.c_str(), team_name.c_str());
-                if (ServerConfig::m_rank_3vs3) add_goalscore(player_name);
-                if (ServerConfig::m_rank_1vs1)
-                {
-                    std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1";
-                    system(singdrossel.c_str());
-                }
-                else if (ServerConfig::m_rank_1vs1_2)
-                {
-                    std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_2";
-                    system(singdrossel.c_str());
-                }
-                else if (ServerConfig::m_rank_1vs1_3)
-                {
-                    std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_3";
-                    system(singdrossel.c_str());
-                }
-                if(ServerConfig::m_count_supertournament_game)
-                {
-                    std::string singdrossel;
-                    std::string bluename=ServerConfig::m_blue_team_name;
-                    std::string redname=ServerConfig::m_red_team_name;
-                    KartTeam teamrb = getKartTeam(sd.m_id);
-                    if (teamrb==KART_TEAM_RED)
-                    {
-                        singdrossel="python3 supertournament_updatecurrentgoals.py "+player_name+" "+redname;
-                    }
-                    if (teamrb==KART_TEAM_BLUE)
-                    {
-                        singdrossel="python3 supertournament_updatecurrentgoals.py "+player_name+" "+bluename;
-                    }
-                    system(singdrossel.c_str());
-                }
-            m_karts[sd.m_id]->getKartModel()
-                ->setAnimation(KartModel::AF_WIN_START, true/* play_non_loop*/);
-        }
-        else if (!sd.m_correct_goal)
-        {
-            Log::info("SoccerWorld", "[Goal] %s scored an own goal for %s",
-                player_name.c_str(), team_name.c_str());
-            if(ServerConfig::m_count_supertournament_game)
+        // if (!stopped)
+        // {
+            if (sd.m_correct_goal)
             {
-                std::string singdrossel;
-                std::string bluename=ServerConfig::m_blue_team_name;
-                std::string redname=ServerConfig::m_red_team_name;
-                KartTeam teamrb = getKartTeam(sd.m_id);
-                if (teamrb==KART_TEAM_RED)
+                if (!stopped)
                 {
-                    singdrossel="python3 supertournament_updatecurrentgoals.py red_own_goals "+bluename;
+                    Log::info("SoccerWorld", "[Goal] %s scored a goal for %s",
+                        player_name.c_str(), team_name.c_str());
+                        if (ServerConfig::m_rank_3vs3) add_goalscore(player_name);
+                        if (ServerConfig::m_rank_1vs1)
+                        {
+                            std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1";
+                            system(singdrossel.c_str());
+                        }
+                        else if (ServerConfig::m_rank_1vs1_2)
+                        {
+                            std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_2";
+                            system(singdrossel.c_str());
+                        }
+                        else if (ServerConfig::m_rank_1vs1_3)
+                        {
+                            std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_3";
+                            system(singdrossel.c_str());
+                        }
+                        if(ServerConfig::m_count_supertournament_game)
+                        {
+                            std::string singdrossel;
+                            std::string bluename=ServerConfig::m_blue_team_name;
+                            std::string redname=ServerConfig::m_red_team_name;
+                            KartTeam teamrb = getKartTeam(sd.m_id);
+                            if (teamrb==KART_TEAM_RED)
+                            {
+                                singdrossel="python3 supertournament_updatecurrentgoals.py "+player_name+" "+redname;
+                            }
+                            if (teamrb==KART_TEAM_BLUE)
+                            {
+                                singdrossel="python3 supertournament_updatecurrentgoals.py "+player_name+" "+bluename;
+                            }
+                            system(singdrossel.c_str());
+                        }
+
+                        m_karts[sd.m_id]->getKartModel()
+                            ->setAnimation(KartModel::AF_WIN_START, true/* play_non_loop*/);
                 }
-                if (teamrb==KART_TEAM_BLUE)
-                {
-                    singdrossel="python3 supertournament_updatecurrentgoals.py blue_own_goals "+redname;
-                }
-                system(singdrossel.c_str());
             }
-            m_karts[sd.m_id]->getKartModel()
-                ->setAnimation(KartModel::AF_LOSE_START, true/* play_non_loop*/);
+            else if (!sd.m_correct_goal)
+            {
+                if (!stopped)
+                {
+                    Log::info("SoccerWorld", "[Goal] %s scored an own goal for %s",
+                    player_name.c_str(), team_name.c_str());
+                    if(ServerConfig::m_count_supertournament_game)
+                    {
+                        std::string singdrossel;
+                        std::string bluename=ServerConfig::m_blue_team_name;
+                        std::string redname=ServerConfig::m_red_team_name;
+                        KartTeam teamrb = getKartTeam(sd.m_id);
+                        if (teamrb==KART_TEAM_RED)
+                        {
+                            singdrossel="python3 supertournament_updatecurrentgoals.py red_own_goals "+bluename;
+                        }
+                        if (teamrb==KART_TEAM_BLUE)
+                        {
+                            singdrossel="python3 supertournament_updatecurrentgoals.py blue_own_goals "+redname;
+                        }
+                        system(singdrossel.c_str());
+                    }
+                    m_karts[sd.m_id]->getKartModel()
+                        ->setAnimation(KartModel::AF_LOSE_START, true/* play_non_loop*/);
+                }
+
+            }
+        // }
+
+        if (stopped)
+        {
+            if (first_goal)
+                ++m_bad_red_goals;
+            else
+                ++m_bad_blue_goals;
+            player_name += " (not counted)";
+            sd.m_player = StringUtils::utf8ToWide(player_name);
         }
 
 #ifndef SERVER_ONLY
@@ -656,7 +676,12 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
             msg = _("%s scored a goal!", sd.m_player);
         else
             msg = _("Oops, %s made an own goal!", sd.m_player);
-        MessageQueue::add(MessageQueue::MT_GENERIC, msg);
+        if (m_race_gui)
+        {
+            m_race_gui->addMessage(msg, NULL, 3.0f,
+                video::SColor(255, 255, 0, 255), /*important*/true,
+                /*big_font*/false, /*outline*/true);
+        }
 #endif
 
         if (first_goal)
@@ -669,7 +694,8 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
                 sd.m_time = getTime();
             // Notice: true first_goal means it's blue goal being shoot,
             // so red team can score
-            m_red_scorers.push_back(sd);
+            // if (!stopped)
+                m_red_scorers.push_back(sd);
         }
         else
         {
@@ -679,7 +705,8 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
             }
             else
                 sd.m_time = getTime();
-            m_blue_scorers.push_back(sd);
+            // if (!stopped)
+                m_blue_scorers.push_back(sd);
         }
         if (NetworkConfig::get()->isNetworking() &&
             NetworkConfig::get()->isServer())
@@ -695,6 +722,7 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
             NetworkString p_1_1 = p;
             p_1_1.encodeString(sd.m_country_code)
                 .addUInt8(sd.m_handicap_level);
+
             auto peers = STKHost::get()->getPeers();
             for (auto& peer : peers)
             {
@@ -711,6 +739,9 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
                     }
                 }
             }
+
+            // if you tell me how to make ServerLobby send that, i'd be glad
+            tellCountIfDiffers();
         }
     }
     for (unsigned i = 0; i < m_karts.size(); i++)
@@ -720,6 +751,13 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
         kart->getBody()->setAngularVelocity(Vec3(0.0f));
         m_goal_transforms[i] = kart->getBody()->getWorldTransform();
     }
+    // if (stopped)
+    // {
+    //     m_red_scorers = m_backup_red_scorers;
+    //     m_blue_scorers = m_backup_blue_scorers;
+    //     m_reset_ball_ticks = m_backup_reset_ball_ticks;
+    //     m_ticks_back_to_own_goal = m_backup_ticks_back_to_own_goal;
+    // }
 }   // onCheckGoalTriggered
 
 //-----------------------------------------------------------------------------
@@ -765,20 +803,30 @@ void SoccerWorld::handlePlayerGoalFromServer(const NetworkString& ns)
         m_blue_scorers.push_back(sd);
     }
 
-    // show a message once a goal is made
-    core::stringw msg;
-    if (sd.m_correct_goal)
-        msg = _("%s scored a goal!", sd.m_player);
-    else
-        msg = _("Oops, %s made an own goal!", sd.m_player);
-    MessageQueue::add(MessageQueue::MT_GENERIC, msg);
-
     if (ticks_now >= ticks_back_to_own_goal && !isStartPhase())
     {
         Log::warn("SoccerWorld", "Server ticks %d is too close to client ticks "
             "%d when goal", ticks_back_to_own_goal, ticks_now);
         return;
     }
+
+    // show a message once a goal is made
+    core::stringw msg;
+    if (sd.m_correct_goal)
+        msg = _("%s scored a goal!", sd.m_player);
+    else
+        msg = _("Oops, %s made an own goal!", sd.m_player);
+    float time = stk_config->ticks2Time(ticks_back_to_own_goal - ticks_now);
+    // May happen if this message is added when spectate started
+    if (time > 3.0f)
+        time = 3.0f;
+    if (m_race_gui && !isStartPhase())
+    {
+        m_race_gui->addMessage(msg, NULL, time,
+            video::SColor(255, 255, 0, 255), /*important*/true,
+            /*big_font*/false, /*outline*/true);
+    }
+
     m_ticks_back_to_own_goal = ticks_back_to_own_goal;
     for (unsigned i = 0; i < m_karts.size(); i++)
     {
@@ -856,7 +904,7 @@ void SoccerWorld::setBallHitter(unsigned int kart_id)
  */
 bool SoccerWorld::isRaceOver()
 {
-    if (m_unfair_team)
+    if (m_unfair_team || m_explicit_stop)
         return true;
 
     if (RaceManager::get()->hasTimeTarget())
@@ -866,8 +914,10 @@ bool SoccerWorld::isRaceOver()
     // One team scored the target goals ...
     else
     {
-        return (getScore(KART_TEAM_BLUE) >= m_goal_target ||
-            getScore(KART_TEAM_RED) >= m_goal_target);
+        return (getScore(KART_TEAM_BLUE) + m_init_blue_goals
+            - m_bad_blue_goals >= m_goal_target ||
+            getScore(KART_TEAM_RED) + m_init_red_goals
+            - m_bad_red_goals >= m_goal_target);
     }
 
 }   // isRaceOver
@@ -1285,3 +1335,70 @@ void SoccerWorld::getKartsDisplayInfo(
         }
     }
 }   // getKartsDisplayInfo
+// ----------------------------------------------------------------------------
+
+void SoccerWorld::stop()
+{
+    stopped = true;
+    Log::info("SoccerWorld", "The game is stopped.");
+
+    m_backup_red_scorers = m_red_scorers;
+    m_backup_blue_scorers = m_blue_scorers;
+    m_backup_reset_ball_ticks = m_reset_ball_ticks;
+    m_backup_ticks_back_to_own_goal = m_ticks_back_to_own_goal;
+
+    // resetKartsToSelfGoals();
+    // if (UserConfigParams::m_arena_ai_stats)
+    //     getKart(8)->flyUp();
+}   // stop
+// ----------------------------------------------------------------------------
+
+void SoccerWorld::resume()
+{
+    stopped = false;
+    Log::info("SoccerWorld", "The game is resumed.");
+
+    // m_red_scorers = m_backup_red_scorers;
+    // m_blue_scorers = m_backup_blue_scorers;
+    // m_reset_ball_ticks = m_backup_reset_ball_ticks;
+    // m_ticks_back_to_own_goal = m_backup_ticks_back_to_own_goal;
+}   // resume
+// ----------------------------------------------------------------------------
+
+void SoccerWorld::setInitialCount(int red, int blue)
+{
+    m_init_red_goals = red;
+    m_init_blue_goals = blue;
+}   // setInitialCount
+// ----------------------------------------------------------------------------
+
+void SoccerWorld::tellCount() const
+{
+    auto peers = STKHost::get()->getPeers();
+    NetworkString* chat = new NetworkString(PROTOCOL_LOBBY_ROOM);
+    chat->addUInt8(17); // LE_CHAT
+    chat->setSynchronous(true);
+    int real_red = (int)m_red_scorers.size() - m_bad_red_goals
+        + m_init_red_goals;
+    int real_blue = (int)m_blue_scorers.size() - m_bad_blue_goals
+        + m_init_blue_goals;
+    std::string real_count =
+        std::to_string(real_red) + " : " + std::to_string(real_blue);
+    chat->encodeString16(StringUtils::utf8ToWide(real_count));
+    for (auto& peer : peers)
+        if (peer->isValidated() && !peer->isWaitingForGame())
+            peer->sendPacket(chat, true/*reliable*/);
+
+    delete chat;
+}   // tellCount
+// ----------------------------------------------------------------------------
+
+void SoccerWorld::tellCountIfDiffers() const
+{
+    if (m_init_red_goals - m_bad_red_goals != 0 ||
+        m_init_blue_goals - m_bad_blue_goals != 0)
+    {
+        tellCount();
+    }
+}   // tellCountIfDiffers
+// ----------------------------------------------------------------------------

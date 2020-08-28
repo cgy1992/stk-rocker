@@ -7387,6 +7387,37 @@ void ServerLobby::handleServerCommand(Event* event,
             sendStringToPeer(msg, peer);
             updatePlayerList();
         }
+	else if (argv[0] == "stop")
+        {
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->stop();
+            std::string msg = "The game is stopped.";
+            sendStringToAllPeers(msg);
+        }
+        else if (argv[0] == "go" || argv[0] == "play" || argv[0] == "resume")
+        {
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->resume();
+            std::string msg = "The game is resumed.";
+            sendStringToAllPeers(msg);
+        }
+        else if (argv[0] == "lobby")
+        {
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->allToLobby();
+            std::string msg = "The game will be restarted or continued.";
+            sendStringToAllPeers(msg);
+        }
+        
     }
 	if (ServerConfig::m_race_tournament)
 	{
