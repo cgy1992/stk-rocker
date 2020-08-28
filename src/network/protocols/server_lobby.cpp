@@ -5164,12 +5164,29 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
     if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
     {
         std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
-        std::string singdrossel;
         std::string redname=ServerConfig::m_red_team_name;
         std::string bluename=ServerConfig::m_blue_team_name;
-        if(m_tournament_red_players.count(username) > 0) singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+redname;
-        else singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+bluename;
-        system(singdrossel.c_str());
+
+                // Adding the current players to the database
+                if (peer->hasPlayerProfiles())
+                {
+                        std::string singdrossel = "";
+
+                        switch (peer->getPlayerProfiles()[0]->getTeam())
+                        {
+                                case KART_TEAM_RED:
+                                        singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname;
+                                        break;
+                                case KART_TEAM_BLUE:
+                                        singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename;
+                                        break;
+                                default:
+                                        break;
+                        }
+
+                        if (singdrossel != "")
+                                system(singdrossel.c_str());
+                }
     }
 }   // finishedLoadingWorldClient
 
