@@ -7234,13 +7234,15 @@ void ServerLobby::handleServerCommand(Event* event,
 			}
 		}
 
-		if (serverHasKart)
+		if (serverHasKart || kart_name == "all")
 		{
 			if (!commandPermitted(cmd, peer, hostRights)) return;
 
 			if (kart_name == "all")
 			{
 				m_set_field = "";
+				if (m_set_kart.count(user_name))
+					m_set_kart.erase(user_name);
 				std::string msg = user_name + " can use all karts again.";
 				sendStringToAllPeers(msg);
 				Log::info("ServerLobby", "setkart all");
