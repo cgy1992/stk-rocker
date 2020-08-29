@@ -1827,6 +1827,7 @@ void ServerLobby::asynchronousUpdate()
                 if (players[i]->getKartName().empty())
                 {
                     bool gnu_eliminated = possible_gnu_enforcement;
+					std::string username = StringUtils::wideToUtf8(players[i]->getName());
                     if (gnu_eliminated)
                     {
                         if (std::find(m_gnu_participants.begin(),
@@ -1841,6 +1842,10 @@ void ServerLobby::asynchronousUpdate()
                     {
                         players[i]->setKartName(m_gnu_kart);
                     }
+					else if (m_set_kart.count(username))
+					{
+						players[i]->setKartName(m_set_kart[username]);
+					}
                     else
                     {
                         RandomGenerator rg;
@@ -2494,6 +2499,8 @@ void ServerLobby::update(int ticks)
 
         // This will go back to lobby in server (and exit the current race)
         exitGameState();
+		// Enable all karts again
+		m_set_kart.clear();
         // Reset for next state usage
         resetPeersReady();
         // Set the delay before the server forces all clients to exit the race
@@ -2523,7 +2530,7 @@ void ServerLobby::update(int ticks)
         {
             std::string redname=ServerConfig::m_red_team_name;
             std::string bluename=ServerConfig::m_blue_team_name;
-	    std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename;
+			std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename;
             system(singdrossel.c_str());
         }
         Log::info("ServerLobby", "End of game message sent");
@@ -3200,12 +3207,46 @@ void ServerLobby::startSelection(const Event *event)
         STKHost::get()->sendPacketToAllPeersWith(
             [/*all_players*/this](STKPeer* p) -> bool
             {
-                // std::string username = StringUtils::wideToUtf8(
-                //     p->getPlayerProfiles()[0]->getName());
-                // return all_players.count(username) > 0;
-                return canRace(p);
+				std::string username = StringUtils::wideToUtf8(
+					p->getPlayerProfiles()[0]->getName());
+				// return all_players.count(username) > 0;
+				bool hasKartFreedom = m_set_kart.count(username) == 0;
+				return canRace(p) && hasKartFreedom;
             }, ns, /*reliable*/true);
         delete ns;
+
+		// After setkart command only one kart is available
+		for (auto& username_kart : m_set_kart)
+		{
+			NetworkString *ns_fixedKart = getNetworkString(1);
+			ns_fixedKart->setSynchronous(true);
+			ns_fixedKart->addUInt8(LE_START_SELECTION)
+				.addFloat(ServerConfig::m_voting_timeout)
+				.addUInt8(/*m_game_setup->isGrandPrixStarted() ? 1 : */0)
+				.addUInt8((ServerConfig::m_fixed_lap_count >= 0
+					|| ServerConfig::m_auto_game_time_ratio > 0.0f) ? 1 : 0)
+				.addUInt8(ServerConfig::m_track_voting ? 1 : 0);
+
+			ns_fixedKart->addUInt16(1).addUInt16((uint16_t)all_t.size());
+
+			ns_fixedKart->encodeString(username_kart.second);
+
+			for (const std::string& track : all_t)
+			{
+				ns_fixedKart->encodeString(track);
+			}
+
+			STKHost::get()->sendPacketToAllPeersWith(
+				[this, username_kart](STKPeer* p) -> bool
+			{
+				std::string username = StringUtils::wideToUtf8(
+					p->getPlayerProfiles()[0]->getName());
+
+				return canRace(p) && username == username_kart.first;
+			}, ns_fixedKart, /*reliable*/true);
+
+			delete ns_fixedKart;
+		}
     }
 
     m_state = SELECTING;
@@ -5167,26 +5208,26 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
         std::string redname=ServerConfig::m_red_team_name;
         std::string bluename=ServerConfig::m_blue_team_name;
 
-                // Adding the current players to the database
-                if (peer->hasPlayerProfiles())
-                {
-                        std::string singdrossel = "";
+        // Adding the current players to the database
+        if (peer->hasPlayerProfiles())
+        {
+            std::string singdrossel = "";
 
-                        switch (peer->getPlayerProfiles()[0]->getTeam())
-                        {
-                                case KART_TEAM_RED:
-                                        singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname;
-                                        break;
-                                case KART_TEAM_BLUE:
-                                        singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename;
-                                        break;
-                                default:
-                                        break;
-                        }
+            switch (peer->getPlayerProfiles()[0]->getTeam())
+            {
+                    case KART_TEAM_RED:
+                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname;
+                            break;
+                    case KART_TEAM_BLUE:
+                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename;
+                            break;
+                    default:
+                            break;
+            }
 
-                        if (singdrossel != "")
-                                system(singdrossel.c_str());
-                }
+            if (singdrossel != "")
+                    system(singdrossel.c_str());
+        }
     }
 }   // finishedLoadingWorldClient
 
@@ -7157,71 +7198,70 @@ void ServerLobby::handleServerCommand(Event* event,
 			return;
 		}
 	}
+	
+	if (argv[0] == "setkart")
+	{
+		if (argv.size() != 2 && argv.size() != 3)
+		{
+			std::string msg = "Format: /setkart kart_name [user_name]";
+			sendStringToPeer(msg, peer);
+			return;
+		}
 
-        if (argv[0] == "setkart")
-        {
-                if (argv.size() != 2 && argv.size() != 3)
-                {
-                        std::string msg = "Format: /setkart kart_name [user_name]";
-                        sendStringToPeer(msg, peer);
-                        return;
-                }
+		std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
 
-                std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+		std::string kart_name = argv[1];
+		std::string user_name = (argv.size() == 3 ? argv[2] : peer_username);
 
-                std::string kart_name = argv[1];
-                std::string user_name = (argv.size() == 3 ? argv[2] : peer_username);
+		bool serverHasKart = (m_official_kts.first.find(kart_name) != m_official_kts.first.end()) ||
+			(m_addon_kts.first.find(kart_name) != m_addon_kts.first.end());
 
-                bool serverHasKart = (m_official_kts.first.find(kart_name) != m_official_kts.first.end()) ||
-                        (m_addon_kts.first.find(kart_name) != m_addon_kts.first.end());
+		if (!serverHasKart)
+		{
+			std::string addon_kart_name = "addon_" + kart_name;
+			bool serverHasAddonKart = (m_official_kts.first.find(addon_kart_name) != m_official_kts.first.end()) ||
+				(m_addon_kts.first.find(addon_kart_name) != m_addon_kts.first.end());
 
-                if (!serverHasKart)
-                {
-                        std::string addon_kart_name = "addon_" + kart_name;
-                        bool serverHasAddonKart = (m_official_kts.first.find(addon_kart_name) != m_official_kts.first.end()) ||
-                                (m_addon_kts.first.find(addon_kart_name) != m_addon_kts.first.end());
+			if (serverHasAddonKart)
+			{
+				serverHasKart = true;
+				kart_name = addon_kart_name;
+			}
+		}
 
-                        if (serverHasAddonKart)
-                        {
-                                serverHasKart = true;
-                                kart_name = addon_kart_name;
-                        }
-                }
+		if (serverHasKart)
+		{
+			if (!commandPermitted(cmd, peer, hostRights)) return;
 
-                if (serverHasKart)
-                {
-                        if (!commandPermitted(cmd, peer, hostRights)) return;
+			if (kart_name == "all")
+			{
+				m_set_field = "";
+				std::string msg = user_name + " can use all karts again.";
+				sendStringToAllPeers(msg);
+				Log::info("ServerLobby", "setkart all");
+				return;
+			}
+			else
+			{
+				m_set_kart[user_name] = kart_name;
+				std::string msg = user_name + " will play with " + kart_name + ".";
 
-                        if (kart_name == "all")
-                        {
-                                m_set_field = "";
-                                std::string msg = user_name + " can use all karts again.";
-                                sendStringToAllPeers(msg);
-                                Log::info("ServerLobby", "setkart all");
-                                return;
-                        }
-                        else
-                        {
-                                m_set_kart[user_name] = kart_name;
-                                std::string msg = user_name + " will play with " + kart_name + ".";
+				// Send message to the lobby
+				sendStringToAllPeers(msg);
 
-                                // Send message to the lobby
-                                sendStringToAllPeers(msg);
+				std::string msg2 = "setkart " + kart_name;
+				Log::info("ServerLobby", msg2.c_str());
+			}
+		}
+		else
+		{
+			std::string msg = "Kart \'" + kart_name + "\' does not exist or is not installed.";
+			sendStringToPeer(msg, peer);
+			return;
+		}
 
-                                std::string msg2 = "setkart " + kart_name;
-                                Log::info("ServerLobby", msg2.c_str());
-                        }
-                }
-                else
-                {
-                        std::string msg = "Kart \'" + kart_name + "\' does not exist or is not installed.";
-                        sendStringToPeer(msg, peer);
-                        return;
-                }
-
-        }
-
-
+	}
+	
 	if (argv[0] == "mode")
 	{
 		if (argv.size() != 2)
