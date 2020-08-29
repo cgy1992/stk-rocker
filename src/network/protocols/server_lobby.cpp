@@ -6132,7 +6132,12 @@ void ServerLobby::setPlayerKarts(const NetworkString& ns, STKPeer* peer) const
         }
         else
         {
-            peer->getPlayerProfiles()[i]->setKartName(kart);
+			std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[i]->getName());
+
+			if (m_set_kart.count(username) == 0)
+				peer->getPlayerProfiles()[i]->setKartName(kart);
+			else
+				peer->getPlayerProfiles()[i]->setKartName(m_set_kart.at(username));
         }
     }
 }   // setPlayerKarts
