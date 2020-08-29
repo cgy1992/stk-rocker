@@ -189,7 +189,7 @@ ServerLobby::ServerLobby() : LobbyProtocol()
         "teamchat gnu nognu standings gnu2 gnu2addtrack record tell "
         "installaddon uninstalladdon liststkaddon listlocaladdon "
         "listserveraddon playerhasaddon playeraddonscore serverhasaddon "
-		"setfield settrack mode vote";
+		"setfield settrack setkart sethost mode vote";
 
     m_gnu_elimination = false;
     m_gnu_remained = 0;
@@ -7208,7 +7208,7 @@ void ServerLobby::handleServerCommand(Event* event,
 	{
 		if (argv.size() != 2 && argv.size() != 3)
 		{
-			std::string msg = "Format: /setkart kart_name [user_name]";
+			std::string msg = "Format: /setkart kart_name [player_name]";
 			sendStringToPeer(msg, peer);
 			return;
 		}
@@ -7265,6 +7265,50 @@ void ServerLobby::handleServerCommand(Event* event,
 			return;
 		}
 
+	}
+
+	if (argv[0] == "sethost")
+	{
+		if (argv.size() != 1 && argv.size() != 2)
+		{
+			std::string msg = "Format: /sethost [player_name]";
+			sendStringToPeer(msg, peer);
+			return;
+		}
+
+		std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+		std::string user_name = (argv.size() == 2 ? argv[1] : peer_username);
+		if (argv.size() == 1)
+			cmd += " " + user_name;
+
+		std::shared_ptr<STKPeer> player_peer = STKHost::get()->findPeerByName(StringUtils::utf8ToWide(user_name));
+
+		if (player_peer)
+		{
+			if (!commandPermitted(cmd, peer, hostRights)) return;
+
+			// updateServerOwner()
+			NetworkString* ns = getNetworkString();
+			ns->setSynchronous(true);
+			ns->addUInt8(LE_SERVER_OWNERSHIP);
+			player_peer->sendPacket(ns);
+			delete ns;
+			m_server_owner = player_peer;
+			m_server_owner_id.store(player_peer->getHostId());
+			updatePlayerList();
+			
+			std::string msg = "New server host is " + user_name;
+			sendStringToAllPeers(msg);
+
+			std::string msg2 = "sethost " + user_name;
+			Log::info("ServerLobby", msg2.c_str());
+		}
+		else
+		{
+			std::string msg = "Player " + user_name + " is not in the lobby.";
+			sendStringToPeer(msg, peer);
+			return;
+		}
 	}
 	
 	if (argv[0] == "mode")
