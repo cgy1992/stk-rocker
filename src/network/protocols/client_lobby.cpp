@@ -764,6 +764,7 @@ void ClientLobby::handleServerInfo(Event* event)
     if (!GUIEngine::isNoGraphics())
         NetworkingLobby::getInstance()->toggleServerConfigButton(server_config);
     m_server_live_joinable = data.getUInt8() == 1;
+    NetworkConfig::get()->setTuxHitboxAddon(m_server_live_joinable);
 }   // handleServerInfo
 
 //-----------------------------------------------------------------------------
@@ -1394,8 +1395,8 @@ void ClientLobby::startLiveJoinKartSelection()
     for (int kart : all_k)
     {
         const KartProperties* kp = kart_properties_manager->getKartById(kart);
-        //if (!kp->isAddon()) // TODO Here, the addon karts are removed.
-		karts.insert(kp->getIdent());
+        //if (!kp->isAddon()) TODO Here, the addon karts are removed.
+        karts.insert(kp->getIdent());
     }
     NetworkKartSelectionScreen::getInstance()
         ->setAvailableKartsFromServer(karts);

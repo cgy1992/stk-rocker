@@ -1,0 +1,6 @@
+Player Team Played_Games Goals
+monk A 10 100
+kimden B 10 40
+TheRocker A 1 4
+red_own_goals B 1 1
+Gelbbrauenlaubsaenger B 1 0

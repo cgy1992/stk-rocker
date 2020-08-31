@@ -22,6 +22,7 @@
 #include "network/protocols/lobby_protocol.hpp"
 #include "utils/cpp2011.hpp"
 #include "utils/time.hpp"
+#include "utils/track_filter.hpp"
 
 #include "irrString.h"
 
@@ -273,6 +274,8 @@ private:
 
     std::set<std::string> m_config_available_tracks;
 
+    std::map<std::string, std::vector<std::string>> m_config_track_limitations;
+
     irr::core::stringw m_help_message;
 
     std::string m_available_commands;
@@ -288,8 +291,8 @@ private:
     std::string m_gnu_kart;
 
     std::vector<std::string> m_gnu_participants;
-
-	bool m_gnu2_activated = false;
+    
+    bool m_gnu2_activated = false;
 
 	bool m_gnu2_initialized = false;
 
@@ -299,15 +302,39 @@ private:
 
     std::set<int> m_available_modes;
 
+    std::map<std::string, std::vector<std::string>> m_tournament_player_categories;
+
     std::set<std::string> m_tournament_red_players;
 
     std::set<std::string> m_tournament_blue_players;
     
     std::set<std::string> m_tournament_referees;
 
+    std::set<std::string> m_tournament_init_red;
+
+    std::set<std::string> m_tournament_init_blue;
+
+    std::set<std::string> m_tournament_init_ref;
+    
 	std::set<std::string> m_race_tournament_players;
 
 	std::set<std::string> m_race_tournament_referees;
+
+    bool m_tournament_limited_chat;
+
+    int m_tournament_length;
+
+    int m_tournament_max_games;
+
+    std::string m_tournament_game_limits;
+
+    std::string m_tournament_colors;
+
+    std::vector<std::string> m_tournament_arenas;
+
+    std::vector<TrackFilter> m_tournament_track_filters;
+
+    TrackFilter m_global_filter;
 
     std::set<std::string> m_temp_banned;
 
@@ -327,13 +354,18 @@ private:
 
     std::set<std::string> m_usernames_white_list;
 
-	std::string m_set_field;
+    bool m_allowed_to_start;
+
+#ifdef ENABLE_WEB_SUPPORT
+    std::set<std::string> m_web_tokens;
+
+    std::atomic<int> m_token_generation_tries;
+#endif
+    std::string m_set_field;
 
 	std::map<std::string, std::string> m_set_kart;
 
 	std::map<std::string, std::vector<std::string>> m_command_voters; // m_command_votes[command][usernames]
-
-
     // connection management
     void clientDisconnected(Event* event);
     void connectionRequested(Event* event);
@@ -455,7 +487,7 @@ private:
     void updateGnuElimination();
     void updateAddons();
     void initTournamentPlayers();
-	void initRaceTournamentPlayers();
+    void initRaceTournamentPlayers();
     void changeColors();
     void sendStringToPeer(std::string& s, std::shared_ptr<STKPeer>& peer) const;
     void sendStringToAllPeers(std::string& s);
@@ -463,7 +495,7 @@ private:
     bool canRace(STKPeer* peer) const;
     bool hasHostRights(std::shared_ptr<STKPeer>& peer) const;
     bool hasHostRights(STKPeer* peer) const;
-	bool voteForCommand(std::shared_ptr<STKPeer>& peer, std::string command);
+    bool voteForCommand(std::shared_ptr<STKPeer>& peer, std::string command);
 	bool commandPermitted(std::string command, std::shared_ptr<STKPeer>& peer, bool hostRights);
 	bool isVIP(std::shared_ptr<STKPeer>& peer) const;
 	bool isVIP(STKPeer* peer) const;
@@ -477,8 +509,8 @@ private:
     bool tournamentGoalsLimit(int game) const;
     bool tournamentColorsSwapped(int game) const;
     bool tournamentHasIcy(int game) const;
-	bool tournamentHasTournamentField(int game) const;
-	void selectRandomTracks(std::vector<std::string>& tracks, int newTrackCount);
+    bool tournamentHasTournamentField(int game) const;
+    void selectRandomTracks(std::vector<std::string>& tracks, int newTrackCount);
 	void selectRandomTracks(std::vector<std::string> &tracks, std::vector<std::string> &availableTracks, int newTrackCount);
 	bool serverAndPeerHaveTrack(std::shared_ptr<STKPeer>& peer, std::string track_id) const;
 	bool serverAndPeerHaveTrack(STKPeer* peer, std::string track_id) const;
@@ -486,7 +518,10 @@ private:
 	void setServerMode(unsigned char difficulty, unsigned char game_mode, unsigned char soccer_goal_target, std::shared_ptr<STKPeer> peer);
 	bool stringToServerMode(std::string server_mode_str, unsigned char &out_game_mode, unsigned char &out_soccer_goal_target);
 	std::string serverModeToString(unsigned char game_mode, unsigned char soccer_goal_target);
-
+#ifdef ENABLE_WEB_SUPPORT
+    void loadAllTokens();
+    std::string getToken();
+#endif
 public:
              ServerLobby();
     virtual ~ServerLobby();
@@ -496,6 +531,7 @@ public:
     virtual void setup() OVERRIDE;
     virtual void update(int ticks) OVERRIDE;
     virtual void asynchronousUpdate() OVERRIDE;
+
     void startSelection(const Event *event=NULL);
     void checkIncomingConnectionRequests();
     void finishedLoadingWorld() OVERRIDE;
@@ -523,9 +559,11 @@ public:
     void storeResults();
     uint32_t getServerIdOnline() const           { return m_server_id_online; }
     void setClientServerHostId(uint32_t id)   { m_client_server_host_id = id; }
+    void initAvailableTracks();
     void initAvailableModes();
     void resetToDefaultSettings();
     void writeOwnReport(STKPeer* reporter, STKPeer* reporting, const std::string& info);
+    // int getTrackMaxPlayers(std::string& name) const;
 };   // class ServerLobby
 
 #endif // SERVER_LOBBY_HPP

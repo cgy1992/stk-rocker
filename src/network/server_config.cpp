@@ -143,12 +143,6 @@ void loadServerConfigXML(const XMLNode* root, bool default_config)
             "A new file will be created.", g_server_config_path.c_str());
         if (root)
             delete root;
-        if (default_config)
-        {
-            // Below option will have different default value when writing
-            // to server_config.xml in config directory
-            m_live_players = false;
-        }
         writeServerConfigToDisk();
         return;
     }
@@ -339,7 +333,7 @@ void loadServerLobbyFromConfig()
     RaceManager::get()->setDifficulty(RaceManager::Difficulty(difficulty));
 
     if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_FREE_FOR_ALL &&
-        m_server_max_players > 10)
+        m_server_max_players > 10 && !m_server_configurable)
         m_server_max_players = 10;
 
     if (m_ipv6_connection)
@@ -366,7 +360,7 @@ void loadServerLobbyFromConfig()
         m_addon_tracks_threshold = 0;
         m_addon_arenas_threshold = 0;
         m_addon_soccers_threshold = 0; // maybe 1 ?
-        m_must_have_tracks_string = "icy_soccer_field soccer_field lasdunassoccer addon_supertournament-field";
+        m_must_have_tracks_string = "icy_soccer_field addon_supertournament-field";
         m_team_choosing = true;
         m_ranked = false;
         m_server_configurable = false;

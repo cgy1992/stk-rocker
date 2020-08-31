@@ -124,7 +124,7 @@ namespace ServerConfig
     SERVER_CFG_PREFIX BoolServerConfigParam m_rank_3vs3
         SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "rank-3vs3",
         "Set up for advanced 3vs3-ranking options."));
-        
+
     SERVER_CFG_PREFIX IntServerConfigParam m_server_port
         SERVER_CFG_DEFAULT(IntServerConfigParam(0, "server-port",
         "Port used in server, if you specify 0, it will use the server port "
@@ -316,7 +316,7 @@ namespace ServerConfig
     SERVER_CFG_PREFIX BoolServerConfigParam m_team_choosing
         SERVER_CFG_DEFAULT(BoolServerConfigParam(true, "team-choosing",
         "Enable team choosing in lobby in team game (soccer and CTF). "
-        "If owner-less is enabled and live-players is not enabled, than this "
+        "If owner-less is enabled and live-spectate is not enabled, than this "
         "option is always disabled."));
 
     SERVER_CFG_PREFIX BoolServerConfigParam m_strict_players
@@ -348,12 +348,12 @@ namespace ServerConfig
         "format \"d0123 m012345678\"."));
 
     SERVER_CFG_PREFIX BoolServerConfigParam m_live_players
-        SERVER_CFG_DEFAULT(BoolServerConfigParam(true, "live-players",
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(true, "live-spectate",
         "If true, players can live join or spectate the in-progress game. "
         "Currently live joining is only available if the current game mode "
-        "used in server is FFA, CTF or soccer, also no addon karts will be "
-        "available for players to choose, and official-karts-threshold will "
-        "be made 1.0."));
+        "used in server is FFA, CTF or soccer, also official-karts-threshold "
+        "will be made 1.0. If false addon karts will use their original "
+        "hitbox other than tux, all players having it restriction applies."));
 
     SERVER_CFG_PREFIX FloatServerConfigParam m_flag_return_timeout
         SERVER_CFG_DEFAULT(FloatServerConfigParam(20.0f, "flag-return-timeout",
@@ -397,12 +397,12 @@ namespace ServerConfig
     SERVER_CFG_PREFIX IntServerConfigParam m_max_ping
         SERVER_CFG_DEFAULT(IntServerConfigParam(300, "max-ping",
         "Maximum ping allowed for a player (in ms), it's recommended to use "
-        "default value if live-players is on."));
+        "default value if live-spectate is on."));
 
     SERVER_CFG_PREFIX IntServerConfigParam m_jitter_tolerance
         SERVER_CFG_DEFAULT(IntServerConfigParam(100, "jitter-tolerance",
         "Tolerance of jitter in network allowed (in ms), it's recommended to "
-        "use default value if live-players is on."));
+        "use default value if live-spectate is on."));
 
     SERVER_CFG_PREFIX BoolServerConfigParam m_kick_high_ping_players
         SERVER_CFG_DEFAULT(BoolServerConfigParam(false,
@@ -560,15 +560,30 @@ namespace ServerConfig
         "tournaments. Rules may change so better ask STK players about "
         "the actual rules."));
 
-    SERVER_CFG_PREFIX StringServerConfigParam m_soccer_tournament_players
+    SERVER_CFG_PREFIX StringServerConfigParam m_soccer_tournament_match
         SERVER_CFG_DEFAULT(StringServerConfigParam("",
-        "soccer-tournament-players",
+        "soccer-tournament-match",
         "List of players and judges. Use the format \"R red red "
         "red B blue blue blue J judge judge\" where "
         "the category is preceded by its letter. Categories can "
-        "be empty or absent and can go in any order."));
+        "be empty or absent and can go in any order. You can use "
+        "a category (#A) instead of listing all players."));
 
-	SERVER_CFG_PREFIX BoolServerConfigParam m_race_tournament
+    SERVER_CFG_PREFIX StringServerConfigParam m_soccer_tournament_players
+        SERVER_CFG_DEFAULT(StringServerConfigParam("",
+        "soccer-tournament-players",
+        "List of tournament players with categories (teams). Use the "
+        "format #Category player1 ... playerN #Category ..."));
+
+    SERVER_CFG_PREFIX StringServerConfigParam m_soccer_tournament_rules
+        SERVER_CFG_DEFAULT(StringServerConfigParam("nochat 10 TTTTG RRRRR;"
+        ";;not %1;"
+        "not %1 "
+        "%2;;;",
+        "soccer-tournament-rules",
+        "A string specifying the match format."));
+
+    SERVER_CFG_PREFIX BoolServerConfigParam m_race_tournament
 		SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "race-tournament",
 			"When true, the server has the functionality to host race "
 			"tournaments. Rules may change so better ask STK players about "
@@ -581,7 +596,7 @@ namespace ServerConfig
 			"player player player player J judge judge\" where "
 			"the category is preceded by its letter. Categories can "
 			"be empty or absent and can go in any order."));
-
+        
     SERVER_CFG_PREFIX StringServerConfigParam m_incompatible_advice
         SERVER_CFG_DEFAULT(StringServerConfigParam("",
         "incompatible-advice",
@@ -623,8 +638,8 @@ namespace ServerConfig
         "Specifies how to count own goals: standard - last touching player "
         "is counted, no-own-goals - last touching player of scoring team "
         "is counted if existing, advanced - as standard for now."));
-
-	SERVER_CFG_PREFIX StringServerConfigParam m_gnu2_available_tracks
+        
+    SERVER_CFG_PREFIX StringServerConfigParam m_gnu2_available_tracks
 		SERVER_CFG_DEFAULT(StringServerConfigParam("",
 		"gnu2-available-tracks",
 		"Available tracks for Gnu eliminaton (/gnu2), splitted by spaces."
@@ -642,6 +657,30 @@ namespace ServerConfig
 		"If true, all players can vote to execute a command that requires host rights. "
 		"Players without host rights can vote by writing the command into the chat, "
 		"players with host rights need to write \"/vote [command]\" instead of \"/[command]\""));
+        
+#ifdef ENABLE_WEB_SUPPORT        
+    SERVER_CFG_PREFIX StringServerConfigParam m_tokens_table
+        SERVER_CFG_DEFAULT(StringServerConfigParam("",
+        "tokens-table",
+        "A table containing tokens for website authentication using "
+        "STK account only."));        
+#endif
+
+    SERVER_CFG_PREFIX StringServerConfigParam m_power_password
+        SERVER_CFG_DEFAULT(StringServerConfigParam("",
+        "power-password",
+        "Allows server owner (not crowned player!) to go to power mode "
+        "to kick players using GUI and not be kicked, empty to disable."));
+
+    SERVER_CFG_PREFIX BoolServerConfigParam m_ai_anywhere
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "ai-anywhere",
+        "If true this server will allow AI instance to be connected from "
+        "anywhere. (other than LAN network only)"));
+
+    SERVER_CFG_PREFIX BoolServerConfigParam m_kicks_allowed
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(true, "kicks-allowed",
+        "If true, the server owner can kick players, either via "
+        "the UI button or using /kick command."));
 
     // ========================================================================
     /** Server version, will be advanced if there are protocol changes. */
