@@ -12,6 +12,8 @@ You are required to have an stk online account first, go [here](https://online.s
 
 It is recommended you have a saved user in your computer to allow hosting multiple servers simultaneously with the same account, if you have a fresh STK installation, first run:
 
+If you intend to keep your server always on (24x7) you are required to implement port forward / direct connection with NAT penetration in your network, we will regularly remove any servers not following this rule.
+
 `supertuxkart --init-user --login=your_registered_name --password=your_password`
 
 After that you should see `Done saving user, leaving` in terminal if it successfully logged in.
@@ -129,7 +131,7 @@ The current server configuration xml looks like this (this is only an example, j
     <!-- Automatically end linear race game after 1st player finished for some time (currently his finished time * 0.25 + 15.0). -->
     <auto-end value="false" />
 
-    <!-- Enable team choosing in lobby in team game (soccer and CTF). If owner-less is enabled and live-players is not enabled, than this option is always disabled. -->
+    <!-- Enable team choosing in lobby in team game (soccer and CTF). If owner-less is enabled and live-spectate is not enabled, than this option is always disabled. -->
     <team-choosing value="true" />
 
     <!-- If strict-players is on, no duplicated online id or split screen players are allowed, which can prevent someone using more than 1 network AI with this server. -->
@@ -144,8 +146,8 @@ The current server configuration xml looks like this (this is only an example, j
     <!-- Description of modes and difficulties that can be set on a configurable server. Doesn't affect initial mode and doesn't affect unconfigurable servers. Use the format "d0123 m012345678". -->
     <available-modes value="d0123 m012345678" />
 
-    <!-- If true, players can live join or spectate the in-progress game. Currently live joining is only available if the current game mode used in server is FFA, CTF or soccer, also no addon karts will be available for players to choose, and official-karts-threshold will be made 1.0. -->
-    <live-players value="true" />
+    <!-- If true, players can live join or spectate the in-progress game. Currently live joining is only available if the current game mode used in server is FFA, CTF or soccer, also official-karts-threshold will be made 1.0. If false addon karts will use their original hitbox other than tux, all players having it restriction applies. -->
+    <live-spectate value="true" />
 
     <!-- Time in seconds when a flag is dropped a by player in CTF returning to its own base. -->
     <flag-return-timeout value="20" />
@@ -168,10 +170,10 @@ The current server configuration xml looks like this (this is only an example, j
     <!-- Value used by server to automatically estimate each game time. For races, it decides the lap of each race in network game, if more than 0.0f, the number of lap of each track vote in linear race will be determined by max(1.0f, auto-game-time-ratio * default lap of that track). For soccer if more than 0.0f, for time limit game it will be auto-game-time-ratio * soccer-time-limit in UserConfig, for goal limit game it will be auto-game-time-ratio * numgoals in UserConfig, -1 to disable for all. -->
     <auto-game-time-ratio value="-1" />
 
-    <!-- Maximum ping allowed for a player (in ms), it's recommended to use default value if live-players is on. -->
+    <!-- Maximum ping allowed for a player (in ms), it's recommended to use default value if live-spectate is on. -->
     <max-ping value="300" />
 
-    <!-- Tolerance of jitter in network allowed (in ms), it's recommended to use default value if live-players is on. -->
+    <!-- Tolerance of jitter in network allowed (in ms), it's recommended to use default value if live-spectate is on. -->
     <jitter-tolerance value="100" />
 
     <!-- Kick players whose ping is above max-ping. -->
@@ -264,6 +266,12 @@ The current server configuration xml looks like this (this is only an example, j
     <!-- Specifies how to count own goals: standard - last touching player is counted, no-own-goals - last touching player of scoring team is counted if existing, advanced - as standard for now. -->
     <soccer-goals-policy value="standard" />
 
+    <!-- If true this server will allow AI instance to be connected from anywhere. (other than LAN network only) -->
+    <ai-anywhere value="false" />
+
+    <!-- If true, the server owner can kick players, either via the UI button or using /kick command. -->
+    <kicks-allowed value="true" />
+
 </server-config>
 
 ```
@@ -282,7 +290,9 @@ Everything is basically the same as WAN one, except you don't need an stk online
 
 `supertuxkart --server-config=your_config.xml --lan-server=your_server_name --network-console`
 
-In LAN network it is required that the server and server discovery port is connectable by clients directly, no NAT penetration will be done in LAN.
+For LAN server it is required that the server and server discovery port is connectable by clients directly, no NAT penetration will be done in LAN.
+
+LAN server can be connected too by typing your server public address (with port) in ```Enter server address``` dialog without relying on stk-addons.
 
 ------
 After the first time configuration, you can just start the server with the command:

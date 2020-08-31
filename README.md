@@ -1,5 +1,5 @@
 # SuperTuxKart
-[![Build Status](https://travis-ci.org/supertuxkart/stk-code.svg?branch=master)](https://travis-ci.org/supertuxkart/stk-code)
+[![Build Status](https://travis-ci.com/supertuxkart/stk-code.svg?branch=master)](https://travis-ci.com/supertuxkart/stk-code)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/supertuxkart/stk-code?svg=true&branch=master)](https://ci.appveyor.com/project/supertuxkart/stk-code)
 [![#supertuxkart on the freenode IRC network](https://img.shields.io/badge/freenode-%23supertuxkart-brightgreen.svg)](https://webchat.freenode.net/?channels=supertuxkart)
 
@@ -8,6 +8,8 @@ SuperTuxKart is a free kart racing game. It focuses on fun and not on realistic 
 The SuperTuxKart homepage can be found at <https://supertuxkart.net/>. There is also our [FAQ](https://supertuxkart.net/FAQ) and information on how get in touch with the [community](https://supertuxkart.net/Community).
 
 Latest release binaries can be found [here](https://sourceforge.net/projects/supertuxkart/files/SuperTuxKart/1.0/).
+
+**You are viewing a modified version of STK**, most important changes are listed [here](/FORK_CHANGES.md).
 
 ## Hardware Requirements
 To run SuperTuxKart, make sure that your computer's specifications are equal or higher than the following specifications:
