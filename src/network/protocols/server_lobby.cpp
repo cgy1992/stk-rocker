@@ -4817,7 +4817,8 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
         // get OS information
         auto version_os = StringUtils::extractVersionOS(profile->getPeer()->getUserVersion());
         //bool angry_host = profile->getPeer()->isAngryHost();
-		bool angry_host = isVIP(profile->getPeer());
+        std::shared_ptr<STKPeer> p = profile->getPeer();
+		bool angry_host = isVIP(p);
         std::string os_type_str = version_os.second;
         auto profile_name = profile->getName();
         // Add a Mobile emoji for mobile OS
@@ -4832,7 +4833,6 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
             .addUInt8(profile->getLocalPlayerId())
             .encodeString(profile_name);
 
-        std::shared_ptr<STKPeer> p = profile->getPeer();
         uint8_t boolean_combine = 0;
         if (p && p->isWaitingForGame())
             boolean_combine |= 1;
@@ -8732,18 +8732,20 @@ icy / non-icy (listed as "addon") arena choice, are isted:
 //-----------------------------------------------------------------------------
 bool ServerLobby::tournamentGoalsLimit(int game) const
 {
-    int rem = game % 8;
-    if (rem < 0)
-        rem += 8;
-    return (rem >> 2) & 1;
+    return m_tournament_game_limits[game] == 'G';
+    // int rem = game % 8;
+    // if (rem < 0)
+    //     rem += 8;
+    // return (rem >> 2) & 1;
 }   // tournamentGoalsLimit
 //-----------------------------------------------------------------------------
 bool ServerLobby::tournamentColorsSwapped(int game) const
 {
-    int rem = game % 8;
-    if (rem < 0)
-        rem += 8;
-    return (rem >> 1) & 1;
+    return m_tournament_colors[game] == 'B';
+    // int rem = game % 8;
+    // if (rem < 0)
+    //     rem += 8;
+    // return (rem >> 1) & 1;
 }   // tournamentColorsSwapped
 //-----------------------------------------------------------------------------
 bool ServerLobby::tournamentHasIcy(int game) const
@@ -8762,4 +8764,112 @@ bool ServerLobby::tournamentHasTournamentField(int game) const
 	return (rem == 3);
 }   // tournamentHasTournamentField
 //-----------------------------------------------------------------------------
+void ServerLobby::initAvailableTracks()
+{
+    m_global_filter = TrackFilter(ServerConfig::m_only_played_tracks_string);
+    m_must_have_tracks = StringUtils::split(
+        ServerConfig::m_must_have_tracks_string, ' ', false);
+    /*m_inverted_config_restriction = false;
+    m_restricting_config = true;
+    if (((std::string)(ServerConfig::m_only_played_tracks_string)).empty())
+    {
+        m_restricting_config = false;
+        return;
+    }
+    std::vector<std::string> available_tracks =
+        StringUtils::split(ServerConfig::m_only_played_tracks_string,
+        ' ', false);
+
+    for (unsigned i = 0; i < available_tracks.size(); i++)
+        if (available_tracks[i] == "not")
+            m_inverted_config_restriction = true;
+
+    for (unsigned i = 0; i < available_tracks.size(); i++)
+    {
+        if (available_tracks[i] == "not")
+            continue;
+        int separator = available_tracks[i].find(':');
+        if (separator != std::string::npos)
+        {
+            std::string track = available_tracks[i].substr(0, separator);
+            std::string params_str = available_tracks[i].substr(separator + 1);
+            std::vector<std::string> params = StringUtils::split(
+                params_str, ',', false);
+            m_config_track_limitations[track] = params;
+        }
+        else
+            m_config_available_tracks.insert(available_tracks[i]);
+    }*/
+}   // initAvailableTracks
+//-----------------------------------------------------------------------------
+// int ServerLobby::getTrackMaxPlayers(std::string& name) const
+// {
+//     auto map_entry = m_config_track_limitations.find(name);
+//     if (map_entry == m_config_track_limitations.end())
+//         return INT_MAX;
+//     std::string key = "max_players";
+//     auto map_value = map_entry->second;
+//     auto where = std::find(map_value.begin(), map_value.end(), key);
+//     auto end = map_value.end();
+//     if (where == end)
+//         return INT_MAX;
+//     where++;
+//     if (where == end)
+//         return INT_MAX;
+//     int track_max_players;
+//     std::string max_str = *where;
+//     if (!StringUtils::parseString<int>(max_str, &track_max_players))
+//     {
+//         Log::warn("ServerLobby", "Bad max_players value for track %s", name.c_str());
+//         return INT_MAX;
+//     }
+//     return track_max_players;
+// }   // getTrackMaxPlayers
+//-----------------------------------------------------------------------------
+
+#ifdef ENABLE_WEB_SUPPORT
+
+void ServerLobby::loadAllTokens()
+{
+#ifdef ENABLE_SQLITE3
+    std::string tokens_table_name = ServerConfig::m_tokens_table;
+    std::string get_query = StringUtils::insertValues(
+        "SELECT distinct tokens from %s;",
+        tokens_table_name.c_str());
+    auto ret = vectorSQLQuery(get_query, 1);
+    if (!ret.first)
+    {
+        Log::warn("ServerLobby", "Could not make a query to retrieve tokens.");
+    }
+    else if (ret.second[0].size() > 0)
+    {
+        Log::info("ServerLobby", "Successfully loaded %d tokens.", (int)ret.second[0].size());
+        for (std::string& s: ret.second[0])
+            m_web_tokens.insert(s);
+    }
+#endif
+}   // loadAllTokens
+//-----------------------------------------------------------------------------
+
+std::string ServerLobby::getToken()
+{
+    int tries = m_token_generation_tries.load();
+    m_token_generation_tries.store(tries + 1);
+    std::mt19937 mt(time(nullptr) + tries);
+    std::string token;
+    for (int i = 0; i < 16; ++i) {
+        int z = mt() % 36;
+        if (z < 26)
+            token.push_back('a' + z);
+        else
+            token.push_back('0' + z - 26);
+        if ((i & 3) == 3)
+            token.push_back(' ');
+    }
+    token.pop_back();
+    return token;
+}   // getToken
+//-----------------------------------------------------------------------------
+
+#endif // ENABLE_WEB_SUPPORT
 
