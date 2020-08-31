@@ -7233,6 +7233,98 @@ void ServerLobby::handleServerCommand(Event* event,
         peer->sendPacket(chat, true/*reliable*/);
         delete chat;
     }
+    if (argv[0] == "power")
+    {
+        if (peer->isAngryHost())
+        {
+            peer->setAngryHost(false);
+            std::string msg = "You are now a normal player";
+            sendStringToPeer(msg, peer);
+            updatePlayerList();
+            return;
+        }
+        std::string password = ServerConfig::m_power_password;
+        if (password.empty() || argv.size() <= 1 || argv[1] != password)
+        {
+            std::string msg = "You need to provide the password to have the power";
+            sendStringToPeer(msg, peer);
+            return;
+        }
+        peer->setAngryHost(true);
+        std::string msg = "Now you finally have the power!";
+        sendStringToPeer(msg, peer);
+        updatePlayerList();
+        return;
+    }
+    else if (argv[0] == "admin")
+    {
+        std::string msg;
+        if (!peer->isAngryHost() && !ServerConfig::m_soccer_tournament) {
+            msg = "You cannot control this server";
+            sendStringToPeer(msg, peer);
+            return;
+        }
+        if (argv.size() == 1) {
+            msg = "Usage: /admin command arg1 arg2 ...";
+            sendStringToPeer(msg, peer);
+            return;
+        }
+        if (argv[1] == "start") {
+            if (argv.size() == 2 || !(argv[2] == "0" || argv[2] == "1")) {
+                msg = "Usage: /admin start [0/1] - allow or forbid starting a race";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+            if (argv[2] == "0") {
+                m_allowed_to_start = false;
+                msg = "Now starting a race is forbidden";
+            } else {
+                m_allowed_to_start = true;
+                msg = "Now starting a race is allowed";
+            }
+            sendStringToPeer(msg, peer);
+            return;
+        }
+    }
+    if (argv[0] == "version")
+    {
+        std::string msg = "1.2-rc1-kimden 200824 including Rocker/Waldlaubsaengernest changes";
+        sendStringToPeer(msg, peer);
+    }
+#ifdef ENABLE_WEB_SUPPORT
+    if (argv[0] == "token")
+    {
+        int online_id = peer->getPlayerProfiles()[0]->getOnlineId();
+        if (online_id <= 0)
+        {
+            std::string msg = "Please join with a valid online STK account.";
+            sendStringToPeer(msg, peer);
+            return;
+        }
+        std::string username = StringUtils::wideToUtf8(
+            peer->getPlayerProfiles()[0]->getName());
+        std::string token = getToken();
+        while (m_web_tokens.count(token))
+            token = getToken();
+        m_web_tokens.insert(token);
+        std::string msg = "Your token is " + token;
+#ifdef ENABLE_SQLITE3
+        std::string tokens_table_name = ServerConfig::m_tokens_table;
+        std::string query = StringUtils::insertValues(
+            "INSERT INTO %s (username, token) "
+            "VALUES (\"%s\", \"%s\");",
+            tokens_table_name.c_str(), username.c_str(), token.c_str()
+        );
+        if (easySQLQuery(query))
+            msg += "\nRetype it on the website to connect your STK account. ";
+        else
+            msg = "An error occurred, please try again.";
+#else
+        msg += "\nThough it is useless...";
+#endif
+        sendStringToPeer(msg, peer);
+    }
+#endif
 	if (argv[0] == "setfield" || argv[0] == "settrack")
 	{
 		bool isField = (argv[0] == "setfield");
@@ -7564,12 +7656,12 @@ void ServerLobby::handleServerCommand(Event* event,
         std::string peer_username = StringUtils::wideToUtf8(
             peer->getPlayerProfiles()[0]->getName());
         if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer))) 
-	{
-            if(!ServerConfig::m_super_tournament)
 	    {
-		std::string msg = "You are not a referee";
+            if(!ServerConfig::m_super_tournament)
+	        {
+		        std::string msg = "You are not a referee";
                 sendStringToPeer(msg, peer);
-	    }
+	        }
             return;
         }
         if (argv[0] == "game")
@@ -7724,7 +7816,30 @@ void ServerLobby::handleServerCommand(Event* event,
             std::string msg = "The game will be restarted or continued.";
             sendStringToAllPeers(msg);
         }
-        
+                else if (argv[0] == "init")
+        {
+            int red, blue;
+            if (argv.size() < 3 ||
+                !StringUtils::parseString<int>(argv[1], &red) ||
+                !StringUtils::parseString<int>(argv[2], &blue))
+            {
+                std::string msg = "Usage: /init [red_count] [blue_count]";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+            World* w = World::getWorld();
+            if (!w)
+            {
+                std::string msg = "Please set the count when the karts "
+                    "are ready. Setting the initial count in lobby is "
+                    "not implemented yet, sorry.";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->setInitialCount(red, blue);
+            sw->tellCount();
+        }
     }
 	if (ServerConfig::m_race_tournament)
 	{
@@ -8049,7 +8164,7 @@ bool ServerLobby::stringToServerMode(std::string server_mode_str, unsigned char 
 	std::vector<std::string> mode_1{ "grand-prix-time", "gpt", "1" };
 	std::vector<std::string> mode_3{ "normal", "normal-race", "n", "Waffen", "3" };
 	std::vector<std::string> mode_4{ "time", "time-trial", "t", "Zeitrennen", "4" };
-	std::vector<std::string> mode_6_0{ "soccer-time", "st", "soccer", "s", "Fußball", "Zeitlimit", "6", "6-0" };
+	std::vector<std::string> mode_6_0{ "soccer-time", "st", "soccer", "s", "Fuï¿½ball", "Zeitlimit", "6", "6-0" };
 	std::vector<std::string> mode_6_1{ "soccer-goal", "sg", "Torlimit", "6-1" };
 	std::vector<std::string> mode_7{ "free-for-all", "ffa", "7" };
 	std::vector<std::string> mode_8{ "capture-the-flag", "ctf", "8" };
@@ -8378,7 +8493,57 @@ void ServerLobby::initTournamentPlayers()
         else if (type == "J")
             m_tournament_referees.insert(s);
     }
-}   // initTournamentPlayers
+    m_tournament_init_red = m_tournament_red_players;
+    m_tournament_init_blue = m_tournament_blue_players;
+    m_tournament_init_ref = m_tournament_referees;
+
+    // Init tournament format
+    tokens = StringUtils::split(
+        ServerConfig::m_soccer_tournament_rules, ';');
+    bool fallback = tokens.size() < 2;
+    std::vector<std::string> general;
+    if (!fallback)
+    {
+        general = StringUtils::split(tokens[0], ' ');
+        if (general.size() < 4)
+            fallback = true;
+    }
+    if (fallback)
+    {
+        Log::warn("ServerLobby", "Tournament rules not complete, fallback to default");
+        general.clear();
+        general.push_back("nochat");
+        general.push_back("10");
+        general.push_back("GGGGT");
+        general.push_back("RRBBR");
+        tokens.clear();
+        tokens.push_back("nochat 10 GGGT RRBBR");
+        tokens.push_back("");
+        tokens.push_back("");
+        tokens.push_back("not %0");
+        tokens.push_back("not %0" " %1");
+        tokens.push_back("");
+    }
+    m_tournament_limited_chat = false;
+    m_tournament_length = 10;
+    if (general[0] == "nochat")
+        m_tournament_limited_chat = true;
+    if (StringUtils::parseString<int>(general[1], &m_tournament_length))
+    {
+        if (m_tournament_length <= 0)
+            m_tournament_length = 10;
+    }
+    else
+        m_tournament_length = 10;
+
+    m_tournament_game_limits = general[2];
+    m_tournament_colors = general[3];
+    m_tournament_max_games = std::min(general[2].length(), general[3].length());
+    m_tournament_max_games = std::min(m_tournament_max_games, (int)tokens.size() - 1);
+    m_tournament_arenas.resize(m_tournament_max_games, "");
+    for (unsigned i = 0; i < m_tournament_max_games; i++)
+        m_tournament_track_filters.emplace_back(tokens[i + 1]);
+    }   // initTournamentPlayers
 //-----------------------------------------------------------------------------
 void ServerLobby::initRaceTournamentPlayers()
 {
