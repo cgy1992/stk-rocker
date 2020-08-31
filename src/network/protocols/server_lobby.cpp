@@ -4832,6 +4832,7 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
         pl->addUInt32(profile->getHostId()).addUInt32(profile->getOnlineId())
             .addUInt8(profile->getLocalPlayerId())
             .encodeString(profile_name);
+
         uint8_t boolean_combine = 0;
         if (p && p->isWaitingForGame())
             boolean_combine |= 1;
