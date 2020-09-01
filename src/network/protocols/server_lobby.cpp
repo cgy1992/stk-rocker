@@ -7650,6 +7650,27 @@ void ServerLobby::handleServerCommand(Event* event,
                 sendStringToPeer(msg, peer); 
 	    }
         }
+        if (argv[0] == "yellow")
+        {
+	    if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            {
+                std::string msg = "You are not a referee";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+            int len_argv = argv.size();
+            int v1=2;
+            std::string msg = argv[1]+" was shown a yellow card by the Referee. Reason:";
+            printf("%i",len_argv);
+            while (v1<len_argv)
+            {
+                msg+=(" "+argv[v1]);
+                v1++;
+            }
+            sendStringToPeer(msg, peer);
+            std::string ringdrossel="python3 supertournament_yellow.py "+argv[1];
+            system(ringdrossel.c_str());
+        }
     }
     if (ServerConfig::m_soccer_tournament)
     {
