@@ -7667,7 +7667,7 @@ void ServerLobby::handleServerCommand(Event* event,
                 msg+=(" "+argv[v1]);
                 v1++;
             }
-            sendStringToPeer(msg, peer);
+            sendStringToAllPeers(msg);
             std::string ringdrossel="python3 supertournament_yellow.py "+argv[1];
             system(ringdrossel.c_str());
         }
