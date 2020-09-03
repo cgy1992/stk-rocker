@@ -89,6 +89,9 @@ namespace ServerConfig
     // ========================================================================
     SERVER_CFG_PREFIX BoolServerConfigParam m_count_supertournament_game
         SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "count","count"));
+
+    SERVER_CFG_PREFIX BoolServerConfigParam m_skip_end
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "skip","skip"));
     
     SERVER_CFG_PREFIX StringServerConfigParam m_red_team_name
         SERVER_CFG_DEFAULT(StringServerConfigParam("A","red-team-name","Name of the red team (A,B,C or D)."));
