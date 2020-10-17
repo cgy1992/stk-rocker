@@ -8235,7 +8235,8 @@ bool ServerLobby::serverAndPeerHaveTrack(STKPeer* peer, std::string track_id) co
 
 	bool serverHasTrack = (m_official_kts.second.find(track_id) != m_official_kts.second.end()) || 
 						  (m_addon_kts.second.find(track_id) != m_addon_kts.second.end()) ||
-						  (m_addon_soccers.find(track_id) != m_addon_soccers.end());
+						  (m_addon_soccers.find(track_id) != m_addon_soccers.end()) ||
+						  (m_addon_arenas.find(track_id) != m_addon_arenas.end());
 
 	return peerHasTrack && serverHasTrack;
 }  // serverAndPeerHaveTrack
