@@ -8277,6 +8277,7 @@ void ServerLobby::setServerMode(unsigned char difficulty, unsigned char game_mod
 
 	Event *e = new Event(netEvent, peer);
 	handleServerConfiguration(e);
+	delete e;
 } // setServerMode
 //-----------------------------------------------------------------------------
 bool ServerLobby::stringToServerMode(std::string server_mode_str, unsigned char &out_game_mode, unsigned char &out_soccer_goal_target)
