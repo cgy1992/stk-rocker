@@ -7587,6 +7587,12 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         if (argv[0] == "ican" || argv[0] == "icant")
         {
+            if (argv.size() == 1)
+            {
+                std::string msg = "None good - u wrong use command";
+                sendStringToPeer(msg, peer);
+		return;
+            }
             bool valid_time=(argv[1]=="mo16" || argv[1]=="mo17" || argv[1]=="mo18" || argv[1]=="tu16" || argv[1]=="tu17" || argv[1]=="tu18" || argv[1]=="we16" || argv[1]=="we17" || argv[1]=="we18" || argv[1]=="th16" || argv[1]=="th17" || argv[1]=="th18" ||argv[1]=="fr16" || argv[1]=="fr17" || argv[1]=="fr18" ||argv[1]=="sa16" || argv[1]=="sa17" || argv[1]=="sa18" || argv[1]=="su16" || argv[1]=="su17" || argv[1]=="su18" || argv[1]=="mo" || argv[1]=="tu" || argv[1]=="we" || argv[1]=="th" || argv[1]=="fr" || argv[1]=="sa" ||argv[1]=="su" || argv[1]=="weekdays" || argv[1]=="weekends" || argv[1]=="weekdays16" || argv[1]=="weekends16" ||argv[1]=="weekdays17" || argv[1]=="weekends17" ||argv[1]=="weekdays18" || argv[1]=="weekends18" ||argv[1]=="16" || argv[1]=="17" || argv[1]=="18"||argv[1]=="all");
             if(valid_time)
             {
