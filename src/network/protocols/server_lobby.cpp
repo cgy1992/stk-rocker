@@ -3912,8 +3912,11 @@ void ServerLobby::clientDisconnected(Event* event)
         .addUInt32(event->getPeer()->getHostId());
 
 	if (m_player_queue_limit > 0)
-		addDeletePlayersFromQueue(event->getPeerSP(), false);
-
+	{
+		auto peer_sp = event->getPeerSP();
+                addDeletePlayersFromQueue(peer_sp, false);
+	}
+		
     for (auto p : players_on_peer)
     {
         std::string name = StringUtils::wideToUtf8(p->getName());
@@ -4843,7 +4846,8 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
             profile_name = StringUtils::utf32ToWide({0x1F528}) + profile_name;
 		if (m_player_queue_limit > 0)
 		{
-			stringw symbol = getQueueNumberIcon(StringUtils::wideToUtf8(profile->getName()));
+			auto p_name = StringUtils::wideToUtf8(profile->getName()); 
+			stringw symbol = getQueueNumberIcon(p_name);
 			profile_name = symbol + profile_name;
 		}
 
