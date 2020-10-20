@@ -366,6 +366,11 @@ private:
 	std::map<std::string, std::string> m_set_kart;
 
 	std::map<std::string, std::vector<std::string>> m_command_voters; // m_command_votes[command][usernames]
+
+	int m_player_queue_limit = -1;
+	std::vector<std::string> m_player_queue;
+
+
     // connection management
     void clientDisconnected(Event* event);
     void connectionRequested(Event* event);
@@ -499,6 +504,10 @@ private:
 	bool commandPermitted(std::string command, std::shared_ptr<STKPeer>& peer, bool hostRights);
 	bool isVIP(std::shared_ptr<STKPeer>& peer) const;
 	bool isVIP(STKPeer* peer) const;
+	int getQueueIndex(std::string &username) const;
+	irr::core::stringw getQueueNumberIcon(std::string &username) const;
+	void addDeletePlayersFromQueue(std::shared_ptr<STKPeer>& peer, bool add);
+	void rotatePlayerQueue();
     void loadTracksQueueFromConfig();
     void sendGnuStandingsToPeer(std::shared_ptr<STKPeer> peer) const;
     void sendGrandPrixStandingsToPeer(std::shared_ptr<STKPeer> peer) const;

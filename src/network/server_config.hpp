@@ -660,6 +660,13 @@ namespace ServerConfig
 		"If true, all players can vote to execute a command that requires host rights. "
 		"Players without host rights can vote by writing the command into the chat, "
 		"players with host rights need to write \"/vote [command]\" instead of \"/[command]\""));
+
+	SERVER_CFG_PREFIX IntServerConfigParam m_player_queue_limit
+		SERVER_CFG_DEFAULT(IntServerConfigParam(-1,
+			"player-queue-limit",
+			"Maximum number of players that can play on the server. "
+			"Other players are in a rotating queue as spectators. "
+		    "Negative number for deactivating the queue"));
         
 #ifdef ENABLE_WEB_SUPPORT        
     SERVER_CFG_PREFIX StringServerConfigParam m_tokens_table
