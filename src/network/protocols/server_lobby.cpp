@@ -179,6 +179,8 @@ ServerLobby::ServerLobby() : LobbyProtocol()
 	//ServerConfig::m_min_start_game_players = 1;
 	//ServerConfig::m_server_configurable = true;
 	//ServerConfig::m_start_game_counter = 180;
+	//ServerConfig::m_player_queue_limit = 2;
+	//ServerConfig::m_team_choosing = true;
 
     m_client_server_host_id.store(0);
     m_lobby_players.store(0);
@@ -2826,12 +2828,14 @@ void ServerLobby::startSelection(const Event *event)
         }
     }
 
-    if (!ServerConfig::m_owner_less && ServerConfig::m_team_choosing &&
+    if (/*!ServerConfig::m_owner_less &&*/ ServerConfig::m_team_choosing &&
         !ServerConfig::m_free_teams && RaceManager::get()->teamEnabled())
     {
         auto red_blue = STKHost::get()->getAllPlayersTeamInfo();
-        if ((red_blue.first == 0 || red_blue.second == 0) &&
-            red_blue.first + red_blue.second != 1)
+
+		bool badTeams = (red_blue.first == 0 || red_blue.second == 0) && (red_blue.first + red_blue.second != 1);
+		bool badTeamsQueue = !playerQueueTeamsBalanced();
+        if (badTeams || badTeamsQueue)
         {
             Log::warn("ServerLobby", "Bad team choosing.");
             if (event)
@@ -3914,7 +3918,7 @@ void ServerLobby::clientDisconnected(Event* event)
 	if (m_player_queue_limit > 0)
 	{
 		auto peer_sp = event->getPeerSP();
-                addDeletePlayersFromQueue(peer_sp, false);
+        addDeletePlayersFromQueue(peer_sp, false);
 	}
 		
     for (auto p : players_on_peer)
@@ -9019,6 +9023,33 @@ void ServerLobby::rotatePlayerQueue()
 		m_player_queue.push_back(m_player_queue[i]);
 	
 	m_player_queue.erase(m_player_queue.begin(), m_player_queue.begin() + m_player_queue_limit);
+}
+//-----------------------------------------------------------------------------
+bool ServerLobby::playerQueueTeamsBalanced()
+{
+	if (m_player_queue_limit <= 0) return true;
+
+	auto peers = STKHost::get()->getPeers();
+	int red = 0, blue = 0;
+	for (auto peer : peers)
+	{
+		for (auto player : peer->getPlayerProfiles())
+		{
+			std::string player_username = StringUtils::wideToUtf8(player->getName());
+			int queueIdx = getQueueIndex(player_username);
+			if (queueIdx >= 0 && queueIdx < m_player_queue_limit)
+			{
+				if (player->getTeam() == KART_TEAM_RED) red++;
+				else if (player->getTeam() == KART_TEAM_BLUE) blue++;
+			}
+		}
+	}
+
+	if (red > 0 && blue > 0) return true;
+
+	if (red + blue == 1) return true;
+
+	return false;
 }
 //-----------------------------------------------------------------------------
 void ServerLobby::loadTracksQueueFromConfig()
