@@ -508,7 +508,7 @@ private:
 	irr::core::stringw getQueueNumberIcon(std::string &username) const;
 	void addDeletePlayersFromQueue(std::shared_ptr<STKPeer>& peer, bool add);
 	void rotatePlayerQueue();
-	bool playerQueueTeamsBalanced();
+	bool teamsBalanced();
     void loadTracksQueueFromConfig();
     void sendGnuStandingsToPeer(std::shared_ptr<STKPeer> peer) const;
     void sendGrandPrixStandingsToPeer(std::shared_ptr<STKPeer> peer) const;

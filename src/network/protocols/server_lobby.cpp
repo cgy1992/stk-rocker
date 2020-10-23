@@ -179,7 +179,7 @@ ServerLobby::ServerLobby() : LobbyProtocol()
 	//ServerConfig::m_min_start_game_players = 1;
 	//ServerConfig::m_server_configurable = true;
 	//ServerConfig::m_start_game_counter = 180;
-	//ServerConfig::m_player_queue_limit = 2;
+	ServerConfig::m_player_queue_limit = 2;
 	//ServerConfig::m_team_choosing = true;
 
     m_client_server_host_id.store(0);
@@ -2100,7 +2100,52 @@ void ServerLobby::liveJoinRequest(Event* event)
                 break;
             used_id.push_back(id);
         }
-		bool queuePlayerLimitReached = m_player_queue_limit > 0 && m_peers_ready.size() >= m_player_queue_limit;
+
+		// Check number of players in the red and in the blue team
+		int red = 0, blue = 0;
+		for (auto &player_peer_wp : m_peers_ready)
+		{
+			auto player_peer_sp = player_peer_wp.first.lock();
+			if (player_peer_sp->isSpectator()) continue;
+			for (auto &player : player_peer_sp->getPlayerProfiles())
+			{
+				if (player->getTeam() == KART_TEAM_RED) red++;
+				else if (player->getTeam() == KART_TEAM_BLUE) blue++;
+			}
+		}
+		for (auto &player : peer->getPlayerProfiles())
+		{
+			if (player->getTeam() == KART_TEAM_RED) red++;
+			else if (player->getTeam() == KART_TEAM_BLUE) blue++;
+		}
+
+		// Reject live join if teams are unbalanced (only red or only blue players)
+		if (/*!ServerConfig::m_owner_less &&*/ ServerConfig::m_team_choosing &&
+			!ServerConfig::m_free_teams && RaceManager::get()->teamEnabled())
+		{
+			if (red + blue > 1 && (red == 0 || blue == 0))
+			{
+				for (unsigned i = 0; i < peer->getPlayerProfiles().size(); i++)
+					peer->getPlayerProfiles()[i]->setKartName("");
+				for (unsigned i = 0; i < used_id.size(); i++)
+				{
+					RemoteKartInfo& rki = RaceManager::get()->getKartInfo(used_id[i]);
+					rki.makeReserved();
+				}
+
+				Log::warn("ServerLobby", "Bad team choosing (live join).");
+				NetworkString* bt = getNetworkString();
+				bt->setSynchronous(true);
+				bt->addUInt8(LE_BAD_TEAM);
+				peer->sendPacket(bt, true/*reliable*/);
+				delete bt;
+				rejectLiveJoin(peer, BLR_NONE);
+				return;
+			}
+		}
+
+		// Reject live join if player limit is reached
+		bool queuePlayerLimitReached = m_player_queue_limit > 0 && red + blue > m_player_queue_limit;
         if (used_id.size() != peer->getPlayerProfiles().size() || queuePlayerLimitReached)
         {
             for (unsigned i = 0; i < peer->getPlayerProfiles().size(); i++)
@@ -2831,11 +2876,9 @@ void ServerLobby::startSelection(const Event *event)
     if (/*!ServerConfig::m_owner_less &&*/ ServerConfig::m_team_choosing &&
         !ServerConfig::m_free_teams && RaceManager::get()->teamEnabled())
     {
-        auto red_blue = STKHost::get()->getAllPlayersTeamInfo();
-
-		bool badTeams = (red_blue.first == 0 || red_blue.second == 0) && (red_blue.first + red_blue.second != 1);
-		bool badTeamsQueue = !playerQueueTeamsBalanced();
-        if (badTeams || badTeamsQueue)
+        //auto red_blue = STKHost::get()->getAllPlayersTeamInfo();
+		//bool badTeams = (red_blue.first == 0 || red_blue.second == 0) && (red_blue.first + red_blue.second != 1);
+        if (!teamsBalanced())
         {
             Log::warn("ServerLobby", "Bad team choosing.");
             if (event)
@@ -8819,8 +8862,12 @@ bool ServerLobby::canRace(STKPeer* peer) const
 
 	if (m_player_queue_limit > 0)
 	{
-		int queueIndex = getQueueIndex(username);
-		if (queueIndex < 0 || queueIndex >= m_player_queue_limit) return false;
+		for (auto player : peer->getPlayerProfiles())
+		{
+			std::string player_username = StringUtils::wideToUtf8(player->getName());
+			int queueIndex = getQueueIndex(player_username);
+			if (queueIndex < 0 || queueIndex >= m_player_queue_limit) return false;
+		}
 	}
 
 	if (m_gnu_elimination && m_gnu2_activated)
@@ -9025,19 +9072,34 @@ void ServerLobby::rotatePlayerQueue()
 	m_player_queue.erase(m_player_queue.begin(), m_player_queue.begin() + m_player_queue_limit);
 }
 //-----------------------------------------------------------------------------
-bool ServerLobby::playerQueueTeamsBalanced()
+bool ServerLobby::teamsBalanced()
 {
-	if (m_player_queue_limit <= 0) return true;
-
 	auto peers = STKHost::get()->getPeers();
 	int red = 0, blue = 0;
-	for (auto peer : peers)
+
+	if (m_player_queue_limit > 0)
 	{
-		for (auto player : peer->getPlayerProfiles())
+		for (auto peer : peers)
 		{
-			std::string player_username = StringUtils::wideToUtf8(player->getName());
-			int queueIdx = getQueueIndex(player_username);
-			if (queueIdx >= 0 && queueIdx < m_player_queue_limit)
+			for (auto player : peer->getPlayerProfiles())
+			{
+				std::string player_username = StringUtils::wideToUtf8(player->getName());
+				int queueIdx = getQueueIndex(player_username);
+				if (queueIdx >= 0 && queueIdx < m_player_queue_limit)
+				{
+					if (player->getTeam() == KART_TEAM_RED) red++;
+					else if (player->getTeam() == KART_TEAM_BLUE) blue++;
+				}
+			}
+		}
+	}
+	else
+	{
+		for (auto peer : peers)
+		{
+			if (peer->alwaysSpectate()) continue;
+
+			for (auto player : peer->getPlayerProfiles())
 			{
 				if (player->getTeam() == KART_TEAM_RED) red++;
 				else if (player->getTeam() == KART_TEAM_BLUE) blue++;
@@ -9045,11 +9107,7 @@ bool ServerLobby::playerQueueTeamsBalanced()
 		}
 	}
 
-	if (red > 0 && blue > 0) return true;
-
-	if (red + blue == 1) return true;
-
-	return false;
+	return (red > 0 && blue > 0) || (red + blue == 1);
 }
 //-----------------------------------------------------------------------------
 void ServerLobby::loadTracksQueueFromConfig()
