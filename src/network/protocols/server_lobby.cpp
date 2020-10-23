@@ -2568,6 +2568,12 @@ void ServerLobby::update(int ticks)
     case SET_PUBLIC_ADDRESS:
     case REGISTER_SELF_ADDRESS:
     case WAITING_FOR_START_GAME:
+		if (m_player_queue_limit > 0 && m_player_queue_rotable)
+		{
+			rotatePlayerQueue();
+			m_player_queue_rotable = false;
+		}
+		break;
     case WAIT_FOR_WORLD_LOADED:
     case WAIT_FOR_RACE_STARTED:
     {
@@ -2582,6 +2588,7 @@ void ServerLobby::update(int ticks)
         Log::info("ServerLobbyRoom", "Starting the race loading.");
         // This will create the world instance, i.e. load track and karts
 		init1vs1Ranking();
+		m_player_queue_rotable = true;
         loadWorld();
         updateWorldSettings();
         m_state = WAIT_FOR_WORLD_LOADED;
@@ -2604,8 +2611,6 @@ void ServerLobby::update(int ticks)
 		m_set_kart.clear();
         // Reset for next state usage
         resetPeersReady();
-		// Rotate the player queue
-		if (m_player_queue_limit > 0) rotatePlayerQueue();
         // Set the delay before the server forces all clients to exit the race
         // result screen and go back to the lobby
         m_timeout.store((int64_t)StkTime::getMonoTimeMs() + 15000);

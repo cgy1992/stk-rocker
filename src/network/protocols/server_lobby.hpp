@@ -368,6 +368,7 @@ private:
 	std::map<std::string, std::vector<std::string>> m_command_voters; // m_command_votes[command][usernames]
 
 	int m_player_queue_limit = -1;
+	bool m_player_queue_rotable = false;
 	std::vector<std::string> m_player_queue;
 
 
