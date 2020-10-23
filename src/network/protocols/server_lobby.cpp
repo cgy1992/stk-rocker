@@ -5317,6 +5317,39 @@ void ServerLobby::getHitCaptureLimit()
     m_battle_time_limit = time_limit;
 }   // getHitCaptureLimit
 
+void ServerLobby::init1vs1Ranking()
+{
+	if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3)
+	{
+		std::vector<std::string> usernames;
+		for (auto p : m_peers_ready)
+		{
+			auto peer = p.first.lock();
+			if (!peer->isSpectator())
+			{
+				for (auto player : peer->getPlayerProfiles())
+					usernames.push_back(std::string(StringUtils::wideToUtf8(player->getName())));
+			}
+		}
+
+		if (usernames.size() == 2)
+		{
+			std::string suffix = ServerConfig::m_rank_1vs1 ? "1vs1" : (ServerConfig::m_rank_1vs1_2 ? "1vs1_2" : "1vs1_3");
+			std::string singdrossel = "python3 current_1vs1_players.py " + usernames[0] + " " + usernames[1] + " " + suffix;
+			system(singdrossel.c_str());
+		}
+		else
+		{
+			Log::warn("ServerLobby", "[1vs1] This game will not count for ranking since the number of players is %d (should be 2).", usernames.size());
+			std::string users_str = "[1vs1] List of usernames:";
+			for (auto &username : usernames) users_str += " " + username;
+			Log::warn("ServerLobby", users_str.c_str());
+			std::string message = "This game will not count for 1vs1 ranking, since the number of players is not equal to 2.";
+			sendStringToAllPeers(message);
+		}
+	}
+}
+
 // ----------------------------------------------------------------------------
 /** Called from the RaceManager of the server when the world is loaded. Marks
  *  the server to be ready to start the race.
@@ -5329,6 +5362,8 @@ void ServerLobby::finishedLoadingWorld()
             peer->updateLastActivity();
     }
     m_server_has_loaded_world.store(true);
+
+	init1vs1Ranking();
 }   // finishedLoadingWorld;
 
 //-----------------------------------------------------------------------------
@@ -5362,15 +5397,6 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
     {
         std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
         add_gamescore2(username);
-    }
-    if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3)
-    {
-        std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
-        std::string singdrossel;
-        if (ServerConfig::m_rank_1vs1_2) singdrossel="python3 current_1vs1_players.py "+username+" 1vs1_2";
-        else if (ServerConfig::m_rank_1vs1_3) singdrossel="python3 current_1vs1_players.py "+username+" 1vs1_3";
-        else singdrossel="python3 current_1vs1_players.py "+username+" 1vs1";
-        system(singdrossel.c_str());
     }
     if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
     {
