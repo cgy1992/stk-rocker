@@ -179,8 +179,9 @@ ServerLobby::ServerLobby() : LobbyProtocol()
 	//ServerConfig::m_min_start_game_players = 1;
 	//ServerConfig::m_server_configurable = true;
 	//ServerConfig::m_start_game_counter = 180;
-	ServerConfig::m_player_queue_limit = 2;
+	//ServerConfig::m_player_queue_limit = 2;
 	//ServerConfig::m_team_choosing = true;
+	//ServerConfig::m_rank_1vs1 = true;
 
     m_client_server_host_id.store(0);
     m_lobby_players.store(0);
@@ -2543,7 +2544,8 @@ void ServerLobby::update(int ticks)
         return;
 
     // Reset for ranked server if in kart / track selection has only 1 player
-    if (ServerConfig::m_ranked &&
+	bool ranked = ServerConfig::m_ranked || ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3;
+    if (ranked &&
         m_state.load() == SELECTING &&
         STKHost::get()->getPlayersInGame() == 1)
     {
@@ -2579,6 +2581,7 @@ void ServerLobby::update(int ticks)
     case LOAD_WORLD:
         Log::info("ServerLobbyRoom", "Starting the race loading.");
         // This will create the world instance, i.e. load track and karts
+		init1vs1Ranking();
         loadWorld();
         updateWorldSettings();
         m_state = WAIT_FOR_WORLD_LOADED;
@@ -5362,8 +5365,6 @@ void ServerLobby::finishedLoadingWorld()
             peer->updateLastActivity();
     }
     m_server_has_loaded_world.store(true);
-
-	init1vs1Ranking();
 }   // finishedLoadingWorld;
 
 //-----------------------------------------------------------------------------
@@ -8057,7 +8058,7 @@ void ServerLobby::handleServerCommand(Event* event,
             std::string msg = "The game will be restarted or continued.";
             sendStringToAllPeers(msg);
         }
-                else if (argv[0] == "init")
+        else if (argv[0] == "init")
         {
             int red, blue;
             if (argv.size() < 3 ||
