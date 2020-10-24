@@ -9102,6 +9102,28 @@ void ServerLobby::rotatePlayerQueue()
 		m_player_queue.push_back(m_player_queue[i]);
 	
 	m_player_queue.erase(m_player_queue.begin(), m_player_queue.begin() + m_player_queue_limit);
+
+	if (m_player_queue_limit == 2 && m_player_queue.size() >= 2)
+	{
+		std::shared_ptr<NetworkPlayerProfile> player1 = NULL, player2 = NULL;
+		auto peers = STKHost::get()->getPeers();
+		for (auto peer : peers)
+		{
+			for (auto player : peer->getPlayerProfiles())
+			{
+				if (StringUtils::wideToUtf8(player->getName()) == m_player_queue[0]) 
+					player1 = player;
+				else if (StringUtils::wideToUtf8(player->getName()) == m_player_queue[1]) 
+					player2 = player;
+			}
+		}
+		if ((player1->getTeam() == KART_TEAM_RED) && (player2->getTeam() == KART_TEAM_RED))
+			player2->setTeam(KART_TEAM_BLUE);
+		if ((player1->getTeam() == KART_TEAM_RED) && (player2->getTeam() == KART_TEAM_RED))
+			player2->setTeam(KART_TEAM_BLUE);
+	}
+
+	updatePlayerList();
 }
 //-----------------------------------------------------------------------------
 bool ServerLobby::teamsBalanced()
