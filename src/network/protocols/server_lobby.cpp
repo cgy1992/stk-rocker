@@ -3030,6 +3030,12 @@ void ServerLobby::startSelection(const Event *event)
 		{
 			tracks_erase.insert("addon_supertournament-field");
 		}
+		if (!tournamentHasGrass(m_tournament_game))
+                {
+                        tracks_erase.insert("addon_tournament-field");
+                        tracks_erase.insert("soccer_field");
+                        tracks_erase.insert("lasdunassoccer");
+                }
 
 		for (const std::string& kart_erase : karts_erase)
 		{
@@ -3070,6 +3076,23 @@ void ServerLobby::startSelection(const Event *event)
 			}
 			// ---------------
 		}
+		else if (tournamentHasGrass(m_tournament_game))
+                {
+                        // ---------------
+                        //selectSoccerField("addon_tournament-field");
+                        if (m_available_kts.second.count("addon_tournament-field") && m_available_kts.second.count("soccer_field") && m_available_kts.second.count("lasdunassoccer"))
+                        {
+                                m_available_kts.second.clear();
+                                m_available_kts.second.insert("addon_tournament-field");
+                                m_available_kts.second.insert("soccer_field");
+                                m_available_kts.second.insert("lasdunassoccer");
+                        }
+                        else
+                        {
+                                m_available_kts.second.clear();
+                        }
+                        // ---------------
+                }
 	}
 	
 	m_command_voters.clear();
@@ -7902,6 +7925,7 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         if (argv[0] == "game")
         {
+	    m_tournament_max_games=6;
             int old_game = m_tournament_game;
             if (argv.size() < 2) {
                 ++m_tournament_game;
@@ -7919,7 +7943,7 @@ void ServerLobby::handleServerCommand(Event* event,
                     sendStringToPeer(msg, peer);
                     return;
                 }
-                int length = 10;
+                int length = 7;
                 if (argv.size() >= 3)
                 {
                     bool ok = StringUtils::parseString(argv[2], &length);
@@ -8804,9 +8828,7 @@ void ServerLobby::initTournamentPlayers()
 
     m_tournament_game_limits = general[2];
     m_tournament_colors = general[3];
-    m_tournament_max_games = std::min(general[2].length(), general[3].length());
-    m_tournament_max_games = std::min(m_tournament_max_games, (int)tokens.size() - 1);
-    m_tournament_arenas.resize(m_tournament_max_games, "");
+    m_tournament_max_games = 6;
     for (unsigned i = 0; i < m_tournament_max_games; i++)
         m_tournament_track_filters.emplace_back(tokens[i + 1]);
     }   // initTournamentPlayers
@@ -9313,7 +9335,7 @@ bool ServerLobby::tournamentHasIcy(int game) const
 	int rem = game % 8;
 	if (rem < 0)
 		rem += 8;
-	return (rem == 1) || (rem > 3);
+	return (rem == 1) || (rem > 5);
 }   // tournamentHasIcy
 //-----------------------------------------------------------------------------
 bool ServerLobby::tournamentHasTournamentField(int game) const
@@ -9321,8 +9343,18 @@ bool ServerLobby::tournamentHasTournamentField(int game) const
 	int rem = game % 8;
 	if (rem < 0)
 		rem += 8;
-	return (rem == 3);
+	printf("hi");
+	return (rem == 5);
 }   // tournamentHasTournamentField
+
+bool ServerLobby::tournamentHasGrass(int game) const
+{
+        int rem = game % 8;
+        if (rem < 0)
+                rem += 8;
+        return (rem == 3);
+}   // tournamentHasTournamentField
+
 
 //-----------------------------------------------------------------------------
 // bool ServerLobby::tournamentHasIcy(int game) const

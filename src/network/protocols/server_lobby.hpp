@@ -522,6 +522,7 @@ private:
     bool tournamentColorsSwapped(int game) const;
     bool tournamentHasIcy(int game) const;
     bool tournamentHasTournamentField(int game) const;
+    bool tournamentHasGrass(int game) const;
     void selectRandomTracks(std::vector<std::string>& tracks, int newTrackCount);
 	void selectRandomTracks(std::vector<std::string> &tracks, std::vector<std::string> &availableTracks, int newTrackCount);
 	bool serverAndPeerHaveTrack(std::shared_ptr<STKPeer>& peer, std::string track_id) const;
