@@ -3019,59 +3019,6 @@ void ServerLobby::startSelection(const Event *event)
 			m_available_kts.second.insert(track);
 	}
     
-    if (ServerConfig::m_soccer_tournament)
-	{
-		if (!tournamentHasIcy(m_tournament_game))
-		{
-			tracks_erase.insert("icy_soccer_field");
-		}
-
-		if (!tournamentHasTournamentField(m_tournament_game))
-		{
-			tracks_erase.insert("addon_supertournament-field");
-		}
-
-		for (const std::string& kart_erase : karts_erase)
-		{
-			m_available_kts.first.erase(kart_erase);
-		}
-		for (const std::string& track_erase : tracks_erase)
-		{
-			m_available_kts.second.erase(track_erase);
-		}
-
-		if (tournamentHasIcy(m_tournament_game))
-		{
-			// ---------------
-			//selectSoccerField("icy_soccer_field");
-			if (m_available_kts.second.count("icy_soccer_field"))
-			{
-				m_available_kts.second.clear();
-				m_available_kts.second.insert("icy_soccer_field");
-			}
-			else
-			{
-				m_available_kts.second.clear();
-			}
-			// ---------------
-		}
-		else if (tournamentHasTournamentField(m_tournament_game))
-		{
-			// ---------------
-			//selectSoccerField("addon_tournament-field");
-			if (m_available_kts.second.count("addon_supertournament-field"))
-			{
-				m_available_kts.second.clear();
-				m_available_kts.second.insert("addon_supertournament-field");
-			}
-			else
-			{
-				m_available_kts.second.clear();
-			}
-			// ---------------
-		}
-	}
-	
 	m_command_voters.clear();
 
 	if (m_gnu_elimination)
@@ -3149,12 +3096,6 @@ void ServerLobby::startSelection(const Event *event)
         }
     }
     
-    m_global_filter.apply(max_player, m_available_kts.second);
-    if (ServerConfig::m_soccer_tournament)
-    {
-        m_tournament_track_filters[m_tournament_game].apply(
-            max_player, m_available_kts.second, m_tournament_arenas);
-    }
    /* auto iter = m_available_kts.second.begin();
     while (iter != m_available_kts.second.end())
     {
@@ -7892,7 +7833,7 @@ void ServerLobby::handleServerCommand(Event* event,
         std::string peer_username = StringUtils::wideToUtf8(
             peer->getPlayerProfiles()[0]->getName());
         if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer))) 
-	    {
+	{
             if(!ServerConfig::m_super_tournament)
 	        {
 		        std::string msg = "You are not a referee";
@@ -7902,44 +7843,49 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         if (argv[0] == "game")
         {
-            int old_game = m_tournament_game;
-            if (argv.size() < 2) {
-                ++m_tournament_game;
-                if (m_tournament_game == m_tournament_max_games)
-                    m_tournament_game = 0;
-                m_fixed_lap = 10;
-            } else {
-                if (!StringUtils::parseString(argv[1], &m_tournament_game)
-                    || m_tournament_game < 0
-                    || m_tournament_game >= m_tournament_max_games)
-                { 
-                    std::string msg = "Please specify a correct number. "
-                        "Format: /game [number 0.."
-                        + std::to_string(m_tournament_max_games - 1) + "] [length]";
-                    sendStringToPeer(msg, peer);
-                    return;
-                }
-                int length = 10;
-                if (argv.size() >= 3)
-                {
-                    bool ok = StringUtils::parseString(argv[2], &length);
-                    if (!ok || length <= 0)
-                    {
-                        std::string msg = "Please specify a correct number. "
-                            "Format: /game [number] [length]";
-                        sendStringToPeer(msg, peer);
-                        return;
-                    }
-                }
-                m_fixed_lap = length;
+            bool ok=false;
+            if (std::stoi(argv[1])>0 && std::stoi(argv[1])<=5) ok=true;
+	    std::string msg;
+            if (argv.size() >= 3) 
+            {
+	        ok=false;
+	        if (std::stoi(argv[2])>0 && std::stoi(argv[2])<=15) ok=true;
+	    }
+            if (argv.size() < 2 || ok==false)
+	    {
+                msg = "Please specify a correct number. Format: /game [number][length]";
+                sendStringToPeer(msg, peer);
+		return;
             }
-            //if (tournamentColorsSwapped(m_tournament_game) ^ tournamentColorsSwapped(old_game))
-            //    changeColors();
-            if (tournamentGoalsLimit(m_tournament_game) ^ tournamentGoalsLimit(old_game))
-                changeLimitForTournament(tournamentGoalsLimit(m_tournament_game));
-            std::string msg = StringUtils::insertValues(
-                "Ready to start game %d for %d ", m_tournament_game, m_fixed_lap)
-                + (tournamentGoalsLimit(m_tournament_game) ? "goals" : "minutes");
+
+            int length=7;
+            m_fixed_lap = length;
+	    if (argv.size() >=3) m_fixed_lap = std::stoi(argv[2]);
+             
+            switch(std::stoi(argv[1]))
+	    {
+                case 1:
+	        {
+                        m_available_kts.second.clear();
+                        m_available_kts.second.insert("icy_soccer_field");
+			break;
+		}
+	        case 5:
+		{
+                        m_available_kts.second.clear();
+                        m_available_kts.second.insert("addon_supertournament-field");
+			break;
+		}
+	        case 3:
+		{
+                        m_available_kts.second.clear();
+                        m_available_kts.second.insert("addon_tournament-field");
+                        m_available_kts.second.insert("soccer_field");
+                        m_available_kts.second.insert("lasdunassoccer");
+			break;
+		}
+            }
+            msg = "Ready to start game "+argv[1]+" for "+ std::to_string(m_fixed_lap)+" minutes!";
             sendStringToAllPeers(msg);
         }
         else if (argv[0] == "role")
@@ -8804,8 +8750,9 @@ void ServerLobby::initTournamentPlayers()
 
     m_tournament_game_limits = general[2];
     m_tournament_colors = general[3];
-    m_tournament_max_games = std::min(general[2].length(), general[3].length());
-    m_tournament_max_games = std::min(m_tournament_max_games, (int)tokens.size() - 1);
+    m_tournament_max_games = 6;
+    //m_tournament_max_games = std::min(general[2].length(), general[3].length());
+    //m_tournament_max_games = std::min(m_tournament_max_games, (int)tokens.size() - 1);
     m_tournament_arenas.resize(m_tournament_max_games, "");
     for (unsigned i = 0; i < m_tournament_max_games; i++)
         m_tournament_track_filters.emplace_back(tokens[i + 1]);
@@ -9307,23 +9254,6 @@ bool ServerLobby::tournamentColorsSwapped(int game) const
     //     rem += 8;
     // return (rem >> 1) & 1;
 }   // tournamentColorsSwapped
-
-bool ServerLobby::tournamentHasIcy(int game) const
-{
-	int rem = game % 8;
-	if (rem < 0)
-		rem += 8;
-	return (rem == 1) || (rem > 3);
-}   // tournamentHasIcy
-//-----------------------------------------------------------------------------
-bool ServerLobby::tournamentHasTournamentField(int game) const
-{
-	int rem = game % 8;
-	if (rem < 0)
-		rem += 8;
-	return (rem == 3);
-}   // tournamentHasTournamentField
-
 //-----------------------------------------------------------------------------
 // bool ServerLobby::tournamentHasIcy(int game) const
 // {
