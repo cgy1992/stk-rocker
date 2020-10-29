@@ -517,16 +517,14 @@ void add_goalscore(std::string player_name)
 {
     // Datei erstellen
     std::string singdrossel;
-    //if(ServerConfig::m_rank_1vs1) singdrossel="python3 update_list.py "+player_name+" goals 0 1vs1";
-    singdrossel="python3 update_list.py "+player_name+" goals 0 3vs3";
+    singdrossel="python3 update_list.py "+player_name+" goals 0 3vs3 &";
     system(singdrossel.c_str());
 }
 
 void add_gamescore(std::string player_name)
 {
     std::string ringdrossel;
-    //if(ServerConfig::m_rank_1vs1) ringdrossel="python3 update_list.py "+player_name+" games 0 1vs1";
-    ringdrossel="python3 update_list.py "+player_name+" games 0 3vs3";
+    ringdrossel="python3 update_list.py "+player_name+" games 0 3vs3 &";
     system(ringdrossel.c_str());
 }
 
@@ -596,17 +594,17 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
                         if (ServerConfig::m_rank_3vs3) add_goalscore(player_name);
                         if (ServerConfig::m_rank_1vs1)
                         {
-                            std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1 0";
+                            std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1 0 &";
                             system(singdrossel.c_str());
                         }
                         else if (ServerConfig::m_rank_1vs1_2)
                         {
-                            std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_2 0";
+                            std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_2 0 &";
                             system(singdrossel.c_str());
                         }
                         else if (ServerConfig::m_rank_1vs1_3)
                         {
-                            std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_3 0";
+                            std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_3 0 &";
                             system(singdrossel.c_str());
                         }
                         if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
@@ -617,11 +615,11 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
                             KartTeam teamrb = getKartTeam(sd.m_id);
                             if (teamrb==KART_TEAM_RED)
                             {
-                                singdrossel="python3 supertournament_updatecurrentgoals.py "+player_name+" "+redname;
+                                singdrossel="python3 supertournament_updatecurrentgoals.py "+player_name+" "+redname + " &";
                             }
                             if (teamrb==KART_TEAM_BLUE)
                             {
-                                singdrossel="python3 supertournament_updatecurrentgoals.py "+player_name+" "+bluename;
+                                singdrossel="python3 supertournament_updatecurrentgoals.py "+player_name+" "+bluename + " &";
                             }
                             system(singdrossel.c_str());
                         }
@@ -644,27 +642,27 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
                         KartTeam teamrb = getKartTeam(sd.m_id);
                         if (teamrb==KART_TEAM_RED)
                         {
-                            singdrossel="python3 supertournament_updatecurrentgoals.py red_own_goals "+bluename;
+                            singdrossel="python3 supertournament_updatecurrentgoals.py red_own_goals "+bluename + " &";
                         }
                         if (teamrb==KART_TEAM_BLUE)
                         {
-                            singdrossel="python3 supertournament_updatecurrentgoals.py blue_own_goals "+redname;
+                            singdrossel="python3 supertournament_updatecurrentgoals.py blue_own_goals "+redname + " &";
                         }
                         system(singdrossel.c_str());
                     }
 		    if (ServerConfig::m_rank_1vs1)
                     {
-                        std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1 own_goal";
+                        std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1 own_goal &";
                         system(singdrossel.c_str());
                     }
                     else if (ServerConfig::m_rank_1vs1_2)
                     {
-                        std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_2 own_goal";
+                        std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_2 own_goal &";
                         system(singdrossel.c_str());
                     }
                     else if (ServerConfig::m_rank_1vs1_3)
                     {
-                        std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_3 own_goal";
+                        std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_3 own_goal &";
                         system(singdrossel.c_str());
                     }
                     m_karts[sd.m_id]->getKartModel()

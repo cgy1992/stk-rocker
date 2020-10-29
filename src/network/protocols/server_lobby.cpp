@@ -2065,8 +2065,8 @@ void ServerLobby::rejectLiveJoin(STKPeer* peer, BackLobbyReason blr)
 void rem_gamescore3(std::string player_name, double phase)
 {
     std::string ringdrossel;
-    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 1vs1";
-    else ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 3vs3";
+    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;
+    else ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 3vs3 &";
     system(ringdrossel.c_str());
 }
 
@@ -2199,8 +2199,8 @@ void ServerLobby::liveJoinRequest(Event* event)
                 std::string singdrossel;
                 std::string redname=ServerConfig::m_red_team_name;
                 std::string bluename=ServerConfig::m_blue_team_name;
-                if(m_tournament_red_players.count(username) > 0) singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+redname;
-                else singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+bluename;
+                if(m_tournament_red_players.count(username) > 0) singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+redname+" &";
+                else singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+bluename+" &";
                 system(singdrossel.c_str());
             }
         }
@@ -2618,27 +2618,27 @@ void ServerLobby::update(int ticks)
         sendMessageToPeers(m_result_ns, /*reliable*/ true);
         if (ServerConfig::m_rank_1vs1)
         {
-            system("python3 update_elo.py 1vs1");
+            system("python3 update_elo.py 1vs1 &");
         }
         if (ServerConfig::m_rank_1vs1_2)
         {
-            system("python3 update_elo.py 1vs1_2");
+            system("python3 update_elo.py 1vs1_2 &");
         }
         if (ServerConfig::m_rank_1vs1_3)
         {
-            system("python3 update_elo.py 1vs1_3");
+            system("python3 update_elo.py 1vs1_3 &");
         }
         if (ServerConfig::m_save_goals)
         {
-            if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) system("python3 update_wiki.py 1vs1");
-            if (ServerConfig::m_rank_1vs1) system("python3 update_wiki.py 1vs1");
-            else system("python3 update_wiki.py 3vs3");
+            if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) system("python3 update_wiki.py 1vs1 &");
+            if (ServerConfig::m_rank_1vs1) system("python3 update_wiki.py 1vs1 &");
+            else system("python3 update_wiki.py 3vs3 &");
         }
         if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game && !(ServerConfig::m_skip_end))
         {
             std::string redname=ServerConfig::m_red_team_name;
             std::string bluename=ServerConfig::m_blue_team_name;
-			std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename;
+			std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename+" &";
             system(singdrossel.c_str());
         }
         Log::info("ServerLobby", "End of game message sent");
@@ -5284,7 +5284,7 @@ void ServerLobby::init1vs1Ranking()
 		if (usernames.size() == 2)
 		{
 			std::string suffix = ServerConfig::m_rank_1vs1 ? "1vs1" : (ServerConfig::m_rank_1vs1_2 ? "1vs1_2" : "1vs1_3");
-			std::string singdrossel = "python3 current_1vs1_players.py " + usernames[0] + " " + usernames[1] + " " + suffix;
+			std::string singdrossel = "python3 current_1vs1_players.py " + usernames[0] + " " + usernames[1] + " " + suffix + " &";
 			system(singdrossel.c_str());
 		}
 		else
@@ -5317,16 +5317,16 @@ void ServerLobby::finishedLoadingWorld()
 void add_gamescore2(std::string player_name)
 {
     std::string singdrossel;
-    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//singdrossel="python3 update_list.py "+player_name+" games 0 1vs1";
-    else singdrossel="python3 update_list.py "+player_name+" games 0 3vs3";
+    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//singdrossel="python3 update_list.py "+player_name+" games 0 1vs1 &";
+    else singdrossel="python3 update_list.py "+player_name+" games 0 3vs3 &";
     system(singdrossel.c_str());
 }
 
 void rem_gamescore2(std::string player_name, double phase)
 {
     std::string ringdrossel;
-    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 1vs1";
-    else ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 3vs3";
+    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 1vs1 &";
+    else ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 3vs3 &";
     system(ringdrossel.c_str());
 }
 
@@ -5359,10 +5359,10 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
             switch (peer->getPlayerProfiles()[0]->getTeam())
             {
                     case KART_TEAM_RED:
-                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname;
+                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname + " &";
                             break;
                     case KART_TEAM_BLUE:
-                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename;
+                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename + " &";
                             break;
                     default:
                             break;
@@ -7691,14 +7691,14 @@ void ServerLobby::handleServerCommand(Event* event,
                 sendStringToPeer(msg, peer);
                 return;
             }
-            if (argv[1]=="A" || argv[1]=="B" || argv[1]=="C" || argv[1]=="D")
+            if (argv[1]=="A" || argv[1]=="B" || argv[1]=="C" || argv[1]=="D" || argv[1]=="E" || argv[1]=="F" || argv[1]=="G")
             {
-                if (argv[2]=="A" || argv[2]=="B" || argv[2]=="C" || argv[2]=="D")
+                if (argv[2]=="A" || argv[2]=="B" || argv[2]=="C" || argv[2]=="D" || argv[2]=="E" || argv[2]=="F" || argv[2]=="G")
 		{
                     ServerConfig::m_red_team_name=argv[1];
                     ServerConfig::m_blue_team_name=argv[2];
                     std::string msg = "Next match will be "+argv[1]+" vs "+argv[2]+".";
-                    sendStringToPeer(msg, peer);
+                    sendStringToAllPeers(msg);
 		}
 	    }
 	    else
@@ -7725,7 +7725,7 @@ void ServerLobby::handleServerCommand(Event* event,
                 v1++;
             }
             sendStringToAllPeers(msg);
-            std::string ringdrossel="python3 supertournament_yellow.py "+argv[1];
+            std::string ringdrossel="python3 supertournament_yellow.py "+argv[1]+" &";
             system(ringdrossel.c_str());
         }
 	if (argv[0] == "addon")
@@ -7738,7 +7738,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             std::string blau=ServerConfig::m_blue_team_name;
             std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Addon "+rot+" "+blau;
+            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Addon "+rot+" "+blau+" &";
             system(ringdrossel.c_str());
             std::string msg = "Succesfully edited Addon.";
             sendStringToPeer(msg, peer);
@@ -7753,7 +7753,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             std::string blau=ServerConfig::m_blue_team_name;
             std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Server "+rot+" "+blau;
+            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Server "+rot+" "+blau+" &";
             system(ringdrossel.c_str());
             std::string msg = "Succesfully edited Server.";
             sendStringToPeer(msg, peer);
@@ -7768,7 +7768,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             std::string blau=ServerConfig::m_blue_team_name;
             std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Referee "+rot+" "+blau;
+            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Referee "+rot+" "+blau+" &";
             system(ringdrossel.c_str());
             std::string msg = "Succesfully edited Referee.";
             sendStringToPeer(msg, peer);
@@ -7783,7 +7783,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             std::string blau=ServerConfig::m_blue_team_name;
             std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Video "+rot+" "+blau;
+            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Video "+rot+" "+blau+" &";
             system(ringdrossel.c_str());
             std::string msg = "Succesfully edited video link.";
             sendStringToPeer(msg, peer);
@@ -7798,7 +7798,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             std::string blau=ServerConfig::m_blue_team_name;
             std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Notes "+rot+" "+blau;
+            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Notes "+rot+" "+blau+" &";
             system(ringdrossel.c_str());
             std::string msg = "Succesfully edited notes.";
             sendStringToPeer(msg, peer);
