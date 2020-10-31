@@ -579,7 +579,7 @@ namespace ServerConfig
         "format #Category player1 ... playerN #Category ..."));
 
     SERVER_CFG_PREFIX StringServerConfigParam m_soccer_tournament_rules
-        SERVER_CFG_DEFAULT(StringServerConfigParam("nochat 10 TTTTG RRRRR;"
+        SERVER_CFG_DEFAULT(StringServerConfigParam("nochat 7 TTTTT RRRRR;"
         ";;not %1;"
         "not %1 "
         "%2;;;",

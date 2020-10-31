@@ -2065,8 +2065,8 @@ void ServerLobby::rejectLiveJoin(STKPeer* peer, BackLobbyReason blr)
 void rem_gamescore3(std::string player_name, double phase)
 {
     std::string ringdrossel;
-    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 1vs1";
-    else ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 3vs3";
+    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;
+    else ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 3vs3 &";
     system(ringdrossel.c_str());
 }
 
@@ -2199,8 +2199,8 @@ void ServerLobby::liveJoinRequest(Event* event)
                 std::string singdrossel;
                 std::string redname=ServerConfig::m_red_team_name;
                 std::string bluename=ServerConfig::m_blue_team_name;
-                if(m_tournament_red_players.count(username) > 0) singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+redname;
-                else singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+bluename;
+                if(m_tournament_red_players.count(username) > 0) singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+redname+" &";
+                else singdrossel="python3 supertournament_addcurrentplayer.py "+username+" "+bluename+" &";
                 system(singdrossel.c_str());
             }
         }
@@ -2618,27 +2618,26 @@ void ServerLobby::update(int ticks)
         sendMessageToPeers(m_result_ns, /*reliable*/ true);
         if (ServerConfig::m_rank_1vs1)
         {
-            system("python3 update_elo.py 1vs1");
+            system("python3 update_elo.py 1vs1 &");
         }
         if (ServerConfig::m_rank_1vs1_2)
         {
-            system("python3 update_elo.py 1vs1_2");
+            system("python3 update_elo.py 1vs1_2 &");
         }
         if (ServerConfig::m_rank_1vs1_3)
         {
-            system("python3 update_elo.py 1vs1_3");
+            system("python3 update_elo.py 1vs1_3 &");
         }
         if (ServerConfig::m_save_goals)
         {
-            if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) system("python3 update_wiki.py 1vs1");
-            if (ServerConfig::m_rank_1vs1) system("python3 update_wiki.py 1vs1");
-            else system("python3 update_wiki.py 3vs3");
+            if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) system("python3 update_wiki.py 1vs1 &");
+            else system("python3 update_wiki.py 3vs3 &");
         }
         if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game && !(ServerConfig::m_skip_end))
         {
             std::string redname=ServerConfig::m_red_team_name;
             std::string bluename=ServerConfig::m_blue_team_name;
-			std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename;
+			std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename+" &";
             system(singdrossel.c_str());
         }
         Log::info("ServerLobby", "End of game message sent");
@@ -3020,59 +3019,6 @@ void ServerLobby::startSelection(const Event *event)
 			m_available_kts.second.insert(track);
 	}
     
-    if (ServerConfig::m_soccer_tournament)
-	{
-		if (!tournamentHasIcy(m_tournament_game))
-		{
-			tracks_erase.insert("icy_soccer_field");
-		}
-
-		if (!tournamentHasTournamentField(m_tournament_game))
-		{
-			tracks_erase.insert("addon_supertournament-field");
-		}
-
-		for (const std::string& kart_erase : karts_erase)
-		{
-			m_available_kts.first.erase(kart_erase);
-		}
-		for (const std::string& track_erase : tracks_erase)
-		{
-			m_available_kts.second.erase(track_erase);
-		}
-
-		if (tournamentHasIcy(m_tournament_game))
-		{
-			// ---------------
-			//selectSoccerField("icy_soccer_field");
-			if (m_available_kts.second.count("icy_soccer_field"))
-			{
-				m_available_kts.second.clear();
-				m_available_kts.second.insert("icy_soccer_field");
-			}
-			else
-			{
-				m_available_kts.second.clear();
-			}
-			// ---------------
-		}
-		else if (tournamentHasTournamentField(m_tournament_game))
-		{
-			// ---------------
-			//selectSoccerField("addon_tournament-field");
-			if (m_available_kts.second.count("addon_supertournament-field"))
-			{
-				m_available_kts.second.clear();
-				m_available_kts.second.insert("addon_supertournament-field");
-			}
-			else
-			{
-				m_available_kts.second.clear();
-			}
-			// ---------------
-		}
-	}
-	
 	m_command_voters.clear();
 
 	if (m_gnu_elimination)
@@ -3126,12 +3072,6 @@ void ServerLobby::startSelection(const Event *event)
         }
     }
     
-    m_global_filter.apply(max_player, m_available_kts.second);
-    if (ServerConfig::m_soccer_tournament)
-    {
-        m_tournament_track_filters[m_tournament_game].apply(
-            max_player, m_available_kts.second, m_tournament_arenas);
-    }
    /* auto iter = m_available_kts.second.begin();
     while (iter != m_available_kts.second.end())
     {
@@ -5320,7 +5260,7 @@ void ServerLobby::init1vs1Ranking()
 		if (usernames.size() == 2)
 		{
 			std::string suffix = ServerConfig::m_rank_1vs1 ? "1vs1" : (ServerConfig::m_rank_1vs1_2 ? "1vs1_2" : "1vs1_3");
-			std::string singdrossel = "python3 current_1vs1_players.py " + usernames[0] + " " + usernames[1] + " " + suffix;
+			std::string singdrossel = "python3 current_1vs1_players.py " + usernames[0] + " " + usernames[1] + " " + suffix + " &";
 			system(singdrossel.c_str());
 		}
 		else
@@ -5353,16 +5293,16 @@ void ServerLobby::finishedLoadingWorld()
 void add_gamescore2(std::string player_name)
 {
     std::string singdrossel;
-    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//singdrossel="python3 update_list.py "+player_name+" games 0 1vs1";
-    else singdrossel="python3 update_list.py "+player_name+" games 0 3vs3";
+    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//singdrossel="python3 update_list.py "+player_name+" games 0 1vs1 &";
+    else singdrossel="python3 update_list.py "+player_name+" games 0 3vs3 &";
     system(singdrossel.c_str());
 }
 
 void rem_gamescore2(std::string player_name, double phase)
 {
     std::string ringdrossel;
-    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 1vs1";
-    else ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 3vs3";
+    if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;//ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 1vs1 &";
+    else ringdrossel="python3 update_list.py "+player_name+" leftgame "+std::to_string(phase)+" 3vs3 &";
     system(ringdrossel.c_str());
 }
 
@@ -5395,10 +5335,10 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
             switch (peer->getPlayerProfiles()[0]->getTeam())
             {
                     case KART_TEAM_RED:
-                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname;
+                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname + " &";
                             break;
                     case KART_TEAM_BLUE:
-                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename;
+                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename + " &";
                             break;
                     default:
                             break;
@@ -7727,14 +7667,14 @@ void ServerLobby::handleServerCommand(Event* event,
                 sendStringToPeer(msg, peer);
                 return;
             }
-            if (argv[1]=="A" || argv[1]=="B" || argv[1]=="C" || argv[1]=="D")
+            if (argv[1]=="A" || argv[1]=="B" || argv[1]=="C" || argv[1]=="D" || argv[1]=="E" || argv[1]=="F" || argv[1]=="G")
             {
-                if (argv[2]=="A" || argv[2]=="B" || argv[2]=="C" || argv[2]=="D")
+                if (argv[2]=="A" || argv[2]=="B" || argv[2]=="C" || argv[2]=="D" || argv[2]=="E" || argv[2]=="F" || argv[2]=="G")
 		{
                     ServerConfig::m_red_team_name=argv[1];
                     ServerConfig::m_blue_team_name=argv[2];
                     std::string msg = "Next match will be "+argv[1]+" vs "+argv[2]+".";
-                    sendStringToPeer(msg, peer);
+                    sendStringToAllPeers(msg);
 		}
 	    }
 	    else
@@ -7761,7 +7701,7 @@ void ServerLobby::handleServerCommand(Event* event,
                 v1++;
             }
             sendStringToAllPeers(msg);
-            std::string ringdrossel="python3 supertournament_yellow.py "+argv[1];
+            std::string ringdrossel="python3 supertournament_yellow.py "+argv[1]+" &";
             system(ringdrossel.c_str());
         }
 	if (argv[0] == "addon")
@@ -7774,7 +7714,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             std::string blau=ServerConfig::m_blue_team_name;
             std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Addon "+rot+" "+blau;
+            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Addon "+rot+" "+blau+" &";
             system(ringdrossel.c_str());
             std::string msg = "Succesfully edited Addon.";
             sendStringToPeer(msg, peer);
@@ -7789,7 +7729,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             std::string blau=ServerConfig::m_blue_team_name;
             std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Server "+rot+" "+blau;
+            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Server "+rot+" "+blau+" &";
             system(ringdrossel.c_str());
             std::string msg = "Succesfully edited Server.";
             sendStringToPeer(msg, peer);
@@ -7804,7 +7744,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             std::string blau=ServerConfig::m_blue_team_name;
             std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Referee "+rot+" "+blau;
+            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Referee "+rot+" "+blau+" &";
             system(ringdrossel.c_str());
             std::string msg = "Succesfully edited Referee.";
             sendStringToPeer(msg, peer);
@@ -7819,7 +7759,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             std::string blau=ServerConfig::m_blue_team_name;
             std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Video "+rot+" "+blau;
+            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Video "+rot+" "+blau+" &";
             system(ringdrossel.c_str());
             std::string msg = "Succesfully edited video link.";
             sendStringToPeer(msg, peer);
@@ -7834,7 +7774,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             std::string blau=ServerConfig::m_blue_team_name;
             std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Notes "+rot+" "+blau;
+            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Notes "+rot+" "+blau+" &";
             system(ringdrossel.c_str());
             std::string msg = "Succesfully edited notes.";
             sendStringToPeer(msg, peer);
@@ -7869,7 +7809,7 @@ void ServerLobby::handleServerCommand(Event* event,
         std::string peer_username = StringUtils::wideToUtf8(
             peer->getPlayerProfiles()[0]->getName());
         if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer))) 
-	    {
+	{
             if(!ServerConfig::m_super_tournament)
 	        {
 		        std::string msg = "You are not a referee";
@@ -7879,44 +7819,49 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         if (argv[0] == "game")
         {
-            int old_game = m_tournament_game;
-            if (argv.size() < 2) {
-                ++m_tournament_game;
-                if (m_tournament_game == m_tournament_max_games)
-                    m_tournament_game = 0;
-                m_fixed_lap = 10;
-            } else {
-                if (!StringUtils::parseString(argv[1], &m_tournament_game)
-                    || m_tournament_game < 0
-                    || m_tournament_game >= m_tournament_max_games)
-                { 
-                    std::string msg = "Please specify a correct number. "
-                        "Format: /game [number 0.."
-                        + std::to_string(m_tournament_max_games - 1) + "] [length]";
-                    sendStringToPeer(msg, peer);
-                    return;
-                }
-                int length = 10;
-                if (argv.size() >= 3)
-                {
-                    bool ok = StringUtils::parseString(argv[2], &length);
-                    if (!ok || length <= 0)
-                    {
-                        std::string msg = "Please specify a correct number. "
-                            "Format: /game [number] [length]";
-                        sendStringToPeer(msg, peer);
-                        return;
-                    }
-                }
-                m_fixed_lap = length;
+            bool ok=false;
+            if (std::stoi(argv[1])>0 && std::stoi(argv[1])<=5) ok=true;
+	    std::string msg;
+            if (argv.size() >= 3) 
+            {
+	        ok=false;
+	        if (std::stoi(argv[2])>0 && std::stoi(argv[2])<=15) ok=true;
+	    }
+            if (argv.size() < 2 || ok==false)
+	    {
+                msg = "Please specify a correct number. Format: /game [number][length]";
+                sendStringToPeer(msg, peer);
+		return;
             }
-            //if (tournamentColorsSwapped(m_tournament_game) ^ tournamentColorsSwapped(old_game))
-            //    changeColors();
-            if (tournamentGoalsLimit(m_tournament_game) ^ tournamentGoalsLimit(old_game))
-                changeLimitForTournament(tournamentGoalsLimit(m_tournament_game));
-            std::string msg = StringUtils::insertValues(
-                "Ready to start game %d for %d ", m_tournament_game, m_fixed_lap)
-                + (tournamentGoalsLimit(m_tournament_game) ? "goals" : "minutes");
+
+            int length=7;
+            m_fixed_lap = length;
+	    if (argv.size() >=3) m_fixed_lap = std::stoi(argv[2]);
+             
+            switch(std::stoi(argv[1]))
+	    {
+                case 1:
+	        {
+                        m_available_kts.second.clear();
+                        m_available_kts.second.insert("icy_soccer_field");
+			break;
+		}
+	        case 5:
+		{
+                        m_available_kts.second.clear();
+                        m_available_kts.second.insert("addon_supertournament-field");
+			break;
+		}
+	        case 3:
+		{
+                        m_available_kts.second.clear();
+                        m_available_kts.second.insert("addon_tournament-field");
+                        m_available_kts.second.insert("soccer_field");
+                        m_available_kts.second.insert("lasdunassoccer");
+			break;
+		}
+            }
+            msg = "Ready to start game "+argv[1]+" for "+ std::to_string(m_fixed_lap)+" minutes!";
             sendStringToAllPeers(msg);
         }
         else if (argv[0] == "role")
@@ -8781,8 +8726,9 @@ void ServerLobby::initTournamentPlayers()
 
     m_tournament_game_limits = general[2];
     m_tournament_colors = general[3];
-    m_tournament_max_games = std::min(general[2].length(), general[3].length());
-    m_tournament_max_games = std::min(m_tournament_max_games, (int)tokens.size() - 1);
+    m_tournament_max_games = 6;
+    //m_tournament_max_games = std::min(general[2].length(), general[3].length());
+    //m_tournament_max_games = std::min(m_tournament_max_games, (int)tokens.size() - 1);
     m_tournament_arenas.resize(m_tournament_max_games, "");
     for (unsigned i = 0; i < m_tournament_max_games; i++)
         m_tournament_track_filters.emplace_back(tokens[i + 1]);
@@ -9319,23 +9265,6 @@ bool ServerLobby::tournamentColorsSwapped(int game) const
     //     rem += 8;
     // return (rem >> 1) & 1;
 }   // tournamentColorsSwapped
-
-bool ServerLobby::tournamentHasIcy(int game) const
-{
-	int rem = game % 8;
-	if (rem < 0)
-		rem += 8;
-	return (rem == 1) || (rem > 3);
-}   // tournamentHasIcy
-//-----------------------------------------------------------------------------
-bool ServerLobby::tournamentHasTournamentField(int game) const
-{
-	int rem = game % 8;
-	if (rem < 0)
-		rem += 8;
-	return (rem == 3);
-}   // tournamentHasTournamentField
-
 //-----------------------------------------------------------------------------
 // bool ServerLobby::tournamentHasIcy(int game) const
 // {
