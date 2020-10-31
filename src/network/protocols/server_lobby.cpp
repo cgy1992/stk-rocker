@@ -2568,11 +2568,7 @@ void ServerLobby::update(int ticks)
     case SET_PUBLIC_ADDRESS:
     case REGISTER_SELF_ADDRESS:
     case WAITING_FOR_START_GAME:
-		if (m_player_queue_limit > 0 && m_player_queue_rotable)
-		{
-			rotatePlayerQueue();
-			m_player_queue_rotable = false;
-		}
+		rotatePlayerQueue(); // in case that the game has been cancelled
 		break;
     case WAIT_FOR_WORLD_LOADED:
     case WAIT_FOR_RACE_STARTED:
@@ -2588,7 +2584,11 @@ void ServerLobby::update(int ticks)
         Log::info("ServerLobbyRoom", "Starting the race loading.");
         // This will create the world instance, i.e. load track and karts
 		init1vs1Ranking();
-		m_player_queue_rotable = true;
+		if (m_player_queue_limit > 0)
+		{
+			m_player_queue_rotatable = true;
+			m_player_queue_history.clear();
+		}
         loadWorld();
         updateWorldSettings();
         m_state = WAIT_FOR_WORLD_LOADED;
@@ -2644,6 +2644,7 @@ void ServerLobby::update(int ticks)
         Log::info("ServerLobby", "End of game message sent");
         break;
     case RESULT_DISPLAY:
+		rotatePlayerQueue();
         if (checkPeersReady(true/*ignore_ai_peer*/) ||
             (int64_t)StkTime::getMonoTimeMs() > m_timeout.load())
         {
@@ -9083,26 +9084,59 @@ void ServerLobby::addDeletePlayersFromQueue(std::shared_ptr<STKPeer>& peer, bool
 		if (add) // add players to queue
 		{
 			if (std::find(m_player_queue.begin(), m_player_queue.end(), username) == m_player_queue.end())
-				m_player_queue.push_back(username);
+			{
+				if (m_player_queue_history.count(username))
+				{
+					int new_index = std::min(m_player_queue_history[username], (int)m_player_queue.size());
+					if (m_player_queue_rotatable && m_player_queue.size() > new_index && m_player_queue[new_index] == "$free$")
+						m_player_queue[new_index] = username;
+					else
+						m_player_queue.insert(m_player_queue.begin() + new_index, username);
+				}
+				else
+				{
+					m_player_queue.push_back(username);
+				}
+			}
 		}
 		else // delete players from queue
 		{
 			int queueIndex = getQueueIndex(username);
 			if (queueIndex != -1)
-				m_player_queue.erase(m_player_queue.begin() + queueIndex);
+			{
+				m_player_queue_history[username] = queueIndex;
+				if (m_player_queue_rotatable && queueIndex < m_player_queue_limit)
+					m_player_queue[queueIndex] = "$free$";
+				else
+					m_player_queue.erase(m_player_queue.begin() + queueIndex);
+			}
 		}
 	}
 }
 //-----------------------------------------------------------------------------
 void ServerLobby::rotatePlayerQueue()
 {
-	if (m_player_queue.size() <= m_player_queue_limit) return;
+	if (!(m_player_queue_limit > 0 && m_player_queue_rotatable))
+		return;
 
-	for (int i = 0; i < m_player_queue_limit; i++)
-		m_player_queue.push_back(m_player_queue[i]);
-	
-	m_player_queue.erase(m_player_queue.begin(), m_player_queue.begin() + m_player_queue_limit);
+	// Rotating the queue
+	if (m_player_queue.size() <= m_player_queue_limit && m_player_queue.size() > 1)
+	{
+		m_player_queue.insert(m_player_queue.begin(), m_player_queue.back());
+		m_player_queue.pop_back();
+	}
+	else
+	{
+		for (int i = 0; i < m_player_queue_limit; i++)
+			m_player_queue.push_back(m_player_queue[i]);
 
+		m_player_queue.erase(m_player_queue.begin(), m_player_queue.begin() + m_player_queue_limit);
+	}
+
+	// Removing all placeholders
+	m_player_queue.erase(std::remove(m_player_queue.begin(), m_player_queue.end(), "$free$"), m_player_queue.end());
+
+	// If only 2 players, put them automatically in a different kart team
 	if (m_player_queue_limit == 2 && m_player_queue.size() >= 2)
 	{
 		std::shared_ptr<NetworkPlayerProfile> player1 = NULL, player2 = NULL;
@@ -9122,7 +9156,9 @@ void ServerLobby::rotatePlayerQueue()
 		if ((player1->getTeam() == KART_TEAM_RED) && (player2->getTeam() == KART_TEAM_RED))
 			player2->setTeam(KART_TEAM_BLUE);
 	}
-
+	
+	m_player_queue_history.clear();
+	m_player_queue_rotatable = false;
 	updatePlayerList();
 }
 //-----------------------------------------------------------------------------
