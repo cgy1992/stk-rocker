@@ -3079,36 +3079,12 @@ void ServerLobby::startSelection(const Event *event)
 	{
 		m_available_kts.first.insert(m_gnu_kart);
 	}
-	else
-	{
-		m_available_kts.first.insert("addon_alternative-tux");
-		m_available_kts.first.insert("addon_android");
-		m_available_kts.first.insert("addon_beagle_2");
-		m_available_kts.first.insert("addon_blinky");
-		m_available_kts.first.insert("addon_buggie");
-		m_available_kts.first.insert("addon_dashie--cyber-bunny-");
-		m_available_kts.first.insert("addon_elephpant");
-		m_available_kts.first.insert("addon_evil-tux-v1");
-		m_available_kts.first.insert("addon_fantasma-gnu");
-		m_available_kts.first.insert("addon_firefox");
-		m_available_kts.first.insert("addon_geeko");
-		m_available_kts.first.insert("addon_hk-pig");
-		m_available_kts.first.insert("addon_minix");
-		m_available_kts.first.insert("addon_mozilla");
-		m_available_kts.first.insert("addon_mr-iceblock");
-		m_available_kts.first.insert("addon_penny_1");
-		m_available_kts.first.insert("addon_python");
-		m_available_kts.first.insert("addon_supertuxcart");
-		m_available_kts.first.insert("addon_ubuntu");
-		m_available_kts.first.insert("addon_vlc");
-	}
 	
     if (!m_tracks_queue.empty())
     {
         m_available_kts.second.clear();
         m_available_kts.second.insert(m_tracks_queue.front());
     }
-
 
     unsigned max_player = 0;
     STKHost::get()->updatePlayers(&max_player);
