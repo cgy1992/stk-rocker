@@ -368,9 +368,9 @@ private:
 	std::map<std::string, std::vector<std::string>> m_command_voters; // m_command_votes[command][usernames]
 
 	int m_player_queue_limit = -1;
-	bool m_player_queue_rotable = false;
+	bool m_player_queue_rotatable = false;
 	std::vector<std::string> m_player_queue;
-
+	std::map<std::string, int> m_player_queue_history;
 
     // connection management
     void clientDisconnected(Event* event);
