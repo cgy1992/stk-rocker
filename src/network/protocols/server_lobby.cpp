@@ -2146,7 +2146,7 @@ void ServerLobby::liveJoinRequest(Event* event)
 		}
 
 		// Reject live join if player limit is reached
-		bool queuePlayerLimitReached = m_player_queue_limit > 0 && red + blue > m_player_queue_limit;
+		bool queuePlayerLimitReached = m_player_queue_limit > 0 && red + blue + m_pending_live_joiners.size() > m_player_queue_limit;
         if (used_id.size() != peer->getPlayerProfiles().size() || queuePlayerLimitReached)
         {
             for (unsigned i = 0; i < peer->getPlayerProfiles().size(); i++)
@@ -2204,6 +2204,12 @@ void ServerLobby::liveJoinRequest(Event* event)
                 system(singdrossel.c_str());
             }
         }
+
+		for (auto &player : peer->getPlayerProfiles())
+		{
+			std::string username = StringUtils::wideToUtf8(player->getName());
+			m_pending_live_joiners.push_back(username);
+		}
     }
     else
     {
@@ -2384,6 +2390,15 @@ void ServerLobby::finishedLoadingLiveJoinClient(Event* event)
             peer->getAddress().toString().c_str());
         spectator = true;
     }
+
+	if (!spectator)
+	{
+		for (auto &player : peer->getPlayerProfiles())
+		{
+			std::string username = StringUtils::wideToUtf8(player->getName());
+			m_pending_live_joiners.erase(std::remove(m_pending_live_joiners.begin(), m_pending_live_joiners.end(), username), m_pending_live_joiners.end());
+		}
+	}
 
     const uint8_t cc = (uint8_t)Track::getCurrentTrack()->getCheckManager()->getCheckStructureCount();
     NetworkString* ns = getNetworkString(10);
@@ -2588,6 +2603,7 @@ void ServerLobby::update(int ticks)
 		{
 			m_player_queue_rotatable = true;
 			m_player_queue_history.clear();
+			m_pending_live_joiners.clear();
 		}
         loadWorld();
         updateWorldSettings();
@@ -3895,6 +3911,8 @@ void ServerLobby::clientDisconnected(Event* event)
         msg->encodeString(name);
         Log::info("ServerLobby", "%s disconnected", name.c_str());
         
+		m_pending_live_joiners.erase(std::remove(m_pending_live_joiners.begin(), m_pending_live_joiners.end(), name), m_pending_live_joiners.end());
+
         if (RaceEventManager::get())
         {
             if (ServerConfig::m_save_goals && RaceEventManager::get()->isRunning())

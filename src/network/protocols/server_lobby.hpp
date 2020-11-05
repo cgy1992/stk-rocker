@@ -371,6 +371,7 @@ private:
 	bool m_player_queue_rotatable = false;
 	std::vector<std::string> m_player_queue;
 	std::map<std::string, int> m_player_queue_history;
+	std::vector<std::string> m_pending_live_joiners;
 
     // connection management
     void clientDisconnected(Event* event);
