@@ -2145,8 +2145,19 @@ void ServerLobby::liveJoinRequest(Event* event)
 			}
 		}
 
+		// 1vs1 ranking
+		bool is1vs1 = (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3);
+		bool is1vs1Player = false;
+		if (peer->getPlayerProfiles().size() == 1 && is1vs1)
+		{
+			std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+			if (username == m_1vs1_players.first || username == m_1vs1_players.second)
+				is1vs1Player = true;
+		}
+
 		// Reject live join if player limit is reached
 		bool queuePlayerLimitReached = m_player_queue_limit > 0 && red + blue + m_pending_live_joiners.size() > m_player_queue_limit;
+		if (is1vs1Player) queuePlayerLimitReached = false;
         if (used_id.size() != peer->getPlayerProfiles().size() || queuePlayerLimitReached)
         {
             for (unsigned i = 0; i < peer->getPlayerProfiles().size(); i++)
@@ -2161,6 +2172,36 @@ void ServerLobby::liveJoinRequest(Event* event)
             rejectLiveJoin(peer, BLR_NO_PLACE_FOR_LIVE_JOIN);
             return;
         }
+
+		// Live join accepted -> Players can always get back to ranked 1vs1 game, even if they already have been substituted
+		if (is1vs1)
+		{
+			if (is1vs1Player)
+			{
+				KartTeam team = peer->getPlayerProfiles()[0]->getTeam();
+				// kick all players of this team since they must be non-counting substitutes
+				for (auto &player_peer_wp : m_peers_ready)
+				{
+					auto player_peer_sp = player_peer_wp.first.lock();
+					if (player_peer_sp->isSpectator()) continue;
+					for (auto &player : player_peer_sp->getPlayerProfiles())
+					{
+						if (player->getTeam() == team)
+						{
+							player_peer_sp->kick();
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				auto peer_sp = event->getPeerSP();
+				std::string msg = "You joined to a ranked match (" + m_1vs1_players.first + " vs " + m_1vs1_players.second + ") as a substitute. ";
+				msg += "Be aware that you will be kicked if one of these players comes back.";
+				sendStringToPeer(msg, peer_sp);
+			}
+		}
 
         for (int id : used_id)
         {
@@ -2603,8 +2644,8 @@ void ServerLobby::update(int ticks)
 		{
 			m_player_queue_rotatable = true;
 			m_player_queue_history.clear();
-			m_pending_live_joiners.clear();
 		}
+		m_pending_live_joiners.clear();
         loadWorld();
         updateWorldSettings();
         m_state = WAIT_FOR_WORLD_LOADED;
@@ -5260,10 +5301,13 @@ void ServerLobby::getHitCaptureLimit()
     m_battle_time_limit = time_limit;
 }   // getHitCaptureLimit
 
+// ----------------------------------------------------------------------------
+
 void ServerLobby::init1vs1Ranking()
 {
 	if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3)
 	{
+		m_1vs1_players.first = ""; m_1vs1_players.second = "";
 		std::vector<std::string> usernames;
 		for (auto p : m_peers_ready)
 		{
@@ -5280,6 +5324,7 @@ void ServerLobby::init1vs1Ranking()
 			std::string suffix = ServerConfig::m_rank_1vs1 ? "1vs1" : (ServerConfig::m_rank_1vs1_2 ? "1vs1_2" : "1vs1_3");
 			std::string singdrossel = "python3 current_1vs1_players.py " + usernames[0] + " " + usernames[1] + " " + suffix + " &";
 			system(singdrossel.c_str());
+			m_1vs1_players.first = usernames[0]; m_1vs1_players.second = usernames[1];
 		}
 		else
 		{

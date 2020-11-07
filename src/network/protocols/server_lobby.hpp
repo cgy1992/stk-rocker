@@ -373,6 +373,8 @@ private:
 	std::map<std::string, int> m_player_queue_history;
 	std::vector<std::string> m_pending_live_joiners;
 
+	std::pair<std::string, std::string> m_1vs1_players;
+
     // connection management
     void clientDisconnected(Event* event);
     void connectionRequested(Event* event);
