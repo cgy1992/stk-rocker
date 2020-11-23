@@ -4649,7 +4649,7 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
     {
         peer->setWaitingForGame(false);
         m_peers_ready[peer] = false;
-        if (!ServerConfig::m_sql_management)
+        if (true)
         {
             for (std::shared_ptr<NetworkPlayerProfile>& npp :
                 peer->getPlayerProfiles())
@@ -7174,6 +7174,34 @@ void ServerLobby::handleServerCommand(Event* event,
             }
             writeOwnReport(peer.get(), peer.get(), ans);
         }
+    }
+    if (argv[0] == "queue")
+    {
+	if (!isVIP(peer) && !( hasHostRights(peer)))
+        {
+            std::string msg = "You cannot change queue length";
+            sendStringToPeer(msg, peer);
+            return;
+	}
+	if(ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) return;
+	if (argv.size() == 1)
+	{
+            std::string msg = "Please use the command in the form /queue [number]";
+            sendStringToPeer(msg, peer);
+	    return;
+	}
+	if(ServerConfig::m_rank_3vs3)
+	{
+	    if (std::stoi(argv[1])>6 || std::stoi(argv[1])<2)
+	    {
+		return;
+	    }
+	}
+	if (std::stoi(argv[1])<2) m_player_queue_limit = -1;
+	else m_player_queue_limit = std::stoi(argv[1]);
+	updatePlayerList();
+        std::string message="The host or server owner changed the queue length to "+argv[1];
+	sendStringToAllPeers(message);
     }
     if (argv[0] == "standings")
     {
