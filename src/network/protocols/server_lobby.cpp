@@ -877,6 +877,16 @@ void ServerLobby::handleChat(Event* event)
     core::stringw message;
     event->data().decodeString16(&message, 360/*max_len*/);
 
+	std::string message_utf8 = StringUtils::wideToUtf8(message);
+	for (auto player : m_faked_players)
+	{
+		if (StringUtils::startsWith(message_utf8, player.first))
+		{
+			message = StringUtils::utf8ToWide(player.second.first) + message.subString(player.first.length(), message.size()-player.first.length());
+			break;
+		}
+	}
+
     KartTeam target_team = KART_TEAM_NONE;
     if (event->data().size() > 0)
         target_team = (KartTeam)event->data().getUInt8();
